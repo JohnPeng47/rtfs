@@ -1,6 +1,7 @@
 ;; scopes
 ;;
-[(block)
+[
+;;(block) too many scopes with this enabled??
  (lambda)
 
  ;; defs in comprehensions are limited to the
@@ -15,6 +16,7 @@
  (for_statement)
 
  (function_definition)
+ (class_definition)
  ] @local.scope
 
 
