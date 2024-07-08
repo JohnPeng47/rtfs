@@ -22,6 +22,10 @@ class Scoping(str, Enum):
     LOCAL = "local"
 
 
+# TODO: make this a part
+namespaces = ["class", "function", "parameter", "variable"]
+
+
 class ScopeGraph:
     def __init__(self, range: TextRange):
         # TODO: put all this logic into a separate Graph class
@@ -32,13 +36,25 @@ class ScopeGraph:
 
     def insert_local_scope(self, new: LocalScope) -> int:
         """
-        Insert local scope to parent
+        Insert local scope to smallest enclosing parent scope
         """
         parent_id = self.scope_by_range(new.range, self.root_idx)
         new_node = ScopeNode(range=new.range, type=NodeKind.SCOPE)
         new_id = self.add_node(new_node)
 
         self._graph.add_edge(new_id, parent_id, type=EdgeKind.ScopeToScope)
+
+        return new_id
+
+    def insert_local_import(self, new: LocalImport) -> int:
+        """
+        Insert import into smallest enclosing parent scope
+        """
+        parent_id = self.scope_by_range(new.range, self.root_idx)
+        new_node = ScopeNode(range=new.range, type=NodeKind.IMPORT)
+        new_id = self.add_node(new_node)
+
+        self._graph.add_edge(new_id, parent_id, type=EdgeKind.ImportToScope)
 
         return new_id
 
@@ -59,12 +75,11 @@ class ScopeGraph:
 
         return None
 
-    def scope_stack(self, start: int = None):
+    def scope_stack(self, start: int):
         """
         Returns stack of parent scope traversed
         """
-        start = start if start else self.root_idx
-        return ScopeStack(self._graph, start=start)
+        return ScopeStack(self._graph, start)
 
     def add_node(self, node: ScopeNode) -> int:
         """
@@ -79,6 +94,11 @@ class ScopeGraph:
 
     def get_node(self, idx: int):
         return ScopeNode(**self._graph.nodes[idx]["attrs"])
+
+    ######### FOR DEBUGGING #########
+    def print_all_nodes(self):
+        for node in self._graph.nodes(data=True):
+            print(node)
 
 
 ####### Parsing Scopes ########
@@ -98,8 +118,8 @@ class LocalRefCapture(BaseModel):
 def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
     local_def_captures: List[LocalDefCapture] = []
     local_ref_captures: List[LocalRefCapture] = []
-    local_scope_capture_index: Optional[int] = None
-    local_import_capture_index: Optional[int] = None
+    local_scope_capture_indices: List = []
+    local_import_capture_indices: List = []
 
     # capture_id -> range map
     capture_map: Dict[int, TextRange] = {}
@@ -144,14 +164,28 @@ def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
                 l = LocalRefCapture(index=index, symbol=symbol)
                 local_ref_captures.append(l)
             case ["local", "scope"]:
-                local_scope_capture_index = i
+                local_scope_capture_indices.append(i)
             case ["local", "import"]:
-                local_import_capture_index = i
+                local_import_capture_indices.append(i)
 
     root_range = TextRange(start=root_node.start_point[0], end=root_node.end_point[0])
     scope_graph = ScopeGraph(root_range)
 
     # insert scopes first
-    scope_graph.insert_local_scope(
-        ScopeNode(range=capture_map[local_scope_capture_index], type=NodeKind.SCOPE)
-    )
+    for i in local_scope_capture_indices:
+        scope_graph.insert_local_scope(LocalScope(range=capture_map[i]))
+
+    # insert imports
+    for i in local_import_capture_indices:
+        scope_graph.insert_local_import(LocalImport(range=capture_map[i]))
+
+    # insert defs
+    # for def_capture in local_def_captures:
+    #     # TODO: probably should add this abstraction for
+    #     # skipping out on symbol namespace finding ...
+    #     range = capture_map[def_capture.index]
+    #     local_def = LocalDef(range=range, symbol=local_def.symbol)
+    #     match def_capture.scoping:
+    #         case Scoping.GLOBAL:
+
+    scope_graph.print_all_nodes()

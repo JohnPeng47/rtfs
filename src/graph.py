@@ -9,7 +9,7 @@ from src.utils import TextRange
 class NodeKind(str, Enum):
     SCOPE = "LocalScope"
     DEFINITION = "LocalDef"
-    LOCAL_IMPORT = "LocalImport"
+    IMPORT = "Import"
     REF = "Reference"
 
 

@@ -1,11 +1,10 @@
 from typing import TypeAlias
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 SymbolId: TypeAlias = str
 
 
-@dataclass
-class TextRange:
+class TextRange(BaseModel):
     start: int
     end: int
 
