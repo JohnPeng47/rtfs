@@ -1,28 +1,14 @@
 from src.build_scopes import build_scope_graph
 from src.languages import PythonParse
+from src.scope_resolution.definition import LocalDef
 from src.scope_resolution.scope import LocalScope
 from src.build_scopes import ScopeGraph
 from src.utils import TextRange
 
 
-# def test_insert_local_scopes():
-#     code = """
-# def hello():
-#     def goodbye():
-#         a = 1
-#     b = 2
-# """
-#     query, root_node = PythonParse._build_query(bytearray(code, encoding="utf-8"))
-#     scope_graph = build_scope_graph(query, root_node, 0)
-
-
-def test_insert_scope():
+def test_parent_scope():
     scope_graph = ScopeGraph(TextRange(start=1, end=6))
 
-    # scope 1:
-    #   -> scope2
-    #       -> scope 3
-    #   -> scope 4
     scope1 = LocalScope(1, 5)
     scope2 = LocalScope(2, 4)
     scope3 = LocalScope(3, 4)
@@ -39,5 +25,4 @@ def test_insert_scope():
 3 --ScopeToScope-> 2
 4 --ScopeToScope-> 1
 """
-
     assert scope_graph.to_str() == graph_state

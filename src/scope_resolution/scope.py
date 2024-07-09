@@ -10,8 +10,8 @@ from src.utils import SymbolId, TextRange
 class LocalScope:
     range: TextRange
 
-    def __init__(self, range: TextRange):
-        self.range = range
+    def __init__(self, start: int, end: int):
+        self.range = TextRange(start=start, end=end)
 
 
 class ScopeStack(Iterator):

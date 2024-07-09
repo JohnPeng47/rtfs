@@ -34,29 +34,69 @@ class ScopeGraph:
 
         self.root_idx = self.add_node(ScopeNode(range=range, type=NodeKind.SCOPE))
 
-    def insert_local_scope(self, new: LocalScope) -> int:
+    def insert_local_scope(self, new: LocalScope):
         """
         Insert local scope to smallest enclosing parent scope
         """
-        parent_id = self.scope_by_range(new.range, self.root_idx)
-        new_node = ScopeNode(range=new.range, type=NodeKind.SCOPE)
-        new_id = self.add_node(new_node)
+        parent_scope = self.scope_by_range(new.range, self.root_idx)
+        if parent_scope is not None:
+            new_node = ScopeNode(range=new.range, type=NodeKind.SCOPE)
+            new_id = self.add_node(new_node)
+            self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ScopeToScope)
 
-        self._graph.add_edge(new_id, parent_id, type=EdgeKind.ScopeToScope)
-
-        return new_id
-
-    def insert_local_import(self, new: LocalImport) -> int:
+    def insert_local_import(self, new: LocalImport):
         """
         Insert import into smallest enclosing parent scope
         """
-        parent_id = self.scope_by_range(new.range, self.root_idx)
-        new_node = ScopeNode(range=new.range, type=NodeKind.IMPORT)
-        new_id = self.add_node(new_node)
+        parent_scope = self.scope_by_range(new.range, self.root_idx)
+        if parent_scope is not None:
+            new_node = ScopeNode(range=new.range, type=NodeKind.IMPORT)
+            new_id = self.add_node(new_node)
+            self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ImportToScope)
 
-        self._graph.add_edge(new_id, parent_id, type=EdgeKind.ImportToScope)
+    def insert_local_def(self, new: LocalDef) -> None:
+        """
+        Insert a def into the scope-graph
+        """
+        defining_scope = self.scope_by_range(new.range, self.root_idx)
+        if defining_scope is not None:
+            new_def = ScopeNode(range=new.range, type=NodeKind.DEFINITION)
+            new_idx = self.add_node(new_def)
+            self._graph.add_edge(new_idx, defining_scope, type=EdgeKind.DefToScope)
 
-        return new_id
+    def insert_hoisted_def(self, new: LocalDef) -> None:
+        """
+        Insert a def into the scope-graph, at the parent scope of the defining scope
+        """
+        defining_scope = self.scope_by_range(new.range, self.root_idx)
+        if defining_scope is not None:
+            new_def = ScopeNode(range=new.range, type=NodeKind.DEFINITION)
+            new_idx = self.add_node(new_def)
+
+            # if the parent scope exists, insert this def there, if not,
+            # insert into the defining scope
+            parent_scope = self.parent_scope(defining_scope)
+            target_scope = parent_scope if parent_scope is not None else defining_scope
+
+            self._graph.add_edge(new_idx, target_scope, type=EdgeKind.DefToScope)
+
+    def insert_global_def(self, new: LocalDef) -> None:
+        """
+        Insert a def into the scope-graph, at the root scope
+        """
+        new_def = ScopeNode(range=new.range, type=NodeKind.DEFINITION)
+        new_idx = self.add_node(new_def)
+        self._graph.add_edge(new_idx, self.root_idx, type=EdgeKind.DefToScope)
+
+    def parent_scope(self, start: int) -> Optional[int]:
+        """
+        Produce the parent scope of a given scope
+        """
+        if self.get_node(start).type == NodeKind.SCOPE:
+            for src, dst, attrs in self._graph.out_edges(start, data=True):
+                if attrs["type"] == EdgeKind.ScopeToScope:
+                    return dst
+        return None
 
     def scope_by_range(self, range: TextRange, start: int) -> int:
         """
@@ -95,10 +135,17 @@ class ScopeGraph:
     def get_node(self, idx: int):
         return ScopeNode(**self._graph.nodes[idx]["attrs"])
 
-    ######### FOR DEBUGGING #########
-    def print_all_nodes(self):
-        for node in self._graph.nodes(data=True):
-            print(node)
+    def to_str(self):
+        """
+        A str representation of the graph
+        """
+        repr = "\n"
+
+        for u, v, attrs in self._graph.edges(data=True):
+            edge_type = attrs["type"]
+            repr += f"{u} --{edge_type}-> {v}\n"
+
+        return repr
 
 
 ####### Parsing Scopes ########
@@ -125,7 +172,7 @@ def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
     capture_map: Dict[int, TextRange] = {}
 
     for i, (node, capture_name) in enumerate(query.captures(root_node)):
-        capture_map[i] = TextRange(start=node.start_point[0], end=node.end_point[0])
+        capture_map[i] = (node.range.start_point[0], node.range.end_point[0])
 
         parts = capture_name.split(".")
         match parts:
@@ -173,19 +220,24 @@ def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
 
     # insert scopes first
     for i in local_scope_capture_indices:
-        scope_graph.insert_local_scope(LocalScope(range=capture_map[i]))
+        scope_graph.insert_local_scope(LocalScope(*capture_map[i]))
 
     # insert imports
     for i in local_import_capture_indices:
-        scope_graph.insert_local_import(LocalImport(range=capture_map[i]))
+        scope_graph.insert_local_import(LocalImport(*capture_map[i]))
 
     # insert defs
-    # for def_capture in local_def_captures:
-    #     # TODO: probably should add this abstraction for
-    #     # skipping out on symbol namespace finding ...
-    #     range = capture_map[def_capture.index]
-    #     local_def = LocalDef(range=range, symbol=local_def.symbol)
-    #     match def_capture.scoping:
-    #         case Scoping.GLOBAL:
+    for def_capture in local_def_captures:
+        # TODO: probably should add this abstraction for
+        # skipping out on symbol namespace finding ...
+        start, end = capture_map[def_capture.index]
+        local_def = LocalDef(start, end, def_capture.symbol)
+        match def_capture.scoping:
+            case Scoping.GLOBAL:
+                scope_graph.insert_global_def(local_def)
+            case Scoping.HOISTED:
+                scope_graph.insert_hoisted_def(local_def)
+            case Scoping.LOCAL:
+                scope_graph.insert_local_def(local_def)
 
-    scope_graph.print_all_nodes()
+    print(scope_graph.to_str())

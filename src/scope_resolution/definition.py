@@ -9,8 +9,8 @@ class LocalDef:
     range: TextRange
     symbol: str
 
-    def __init__(self, range: TextRange, symbol: Optional[str]) -> "LocalDef":
-        self.range = range
+    def __init__(self, start, end, symbol: Optional[str]) -> "LocalDef":
+        self.range = TextRange(start=start, end=end)
         self.symbol = symbol
 
     def name(self, buffer: bytes) -> bytes:
