@@ -14,4 +14,4 @@ class Reference:
         self.symbol_id = symbol_id
 
     def name(self, buffer: bytes) -> bytes:
-        return buffer[self.range.start : self.range.end]
+        return buffer[self.range.start_byte : self.range.end_byte]

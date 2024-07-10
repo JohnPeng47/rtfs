@@ -10,7 +10,7 @@ class NodeKind(str, Enum):
     SCOPE = "LocalScope"
     DEFINITION = "LocalDef"
     IMPORT = "Import"
-    REF = "Reference"
+    REFERENCE = "Reference"
 
 
 class ScopeNode(BaseModel):

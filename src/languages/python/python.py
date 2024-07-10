@@ -1,6 +1,7 @@
 from tree_sitter import Language, Parser
 
-from config import PYTHON_SCM, PYTHONTS_LIB
+PYTHONTS_LIB = "src/languages/python/libs/my-python.so"
+PYTHON_SCM = "src/languages/python/python.scm"
 
 
 class PythonParse:

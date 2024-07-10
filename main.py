@@ -2,18 +2,15 @@ from src.languages.python.python import PythonParse
 from src.build_scopes import build_scope_graph
 
 test = """
-import abc
+import namespace.abc
 
 class Hello:
-    string: a = 1
-    helloworld = 2    
-
     def hello1(self):
+        self.a = 1
         pass
         
-    def panzer():
+    def panzer(self):
         pass
 """
 
-query, root = PythonParse()._build_query(bytearray(test, encoding="utf-8"))
-build_scope_graph(query, root, 0)
+build_scope_graph(bytearray(test, encoding="utf-8"), language="python")

@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from networkx import DiGraph
+from dataclasses import asdict
+
 from tree_sitter import Query, Node
 
 from typing import Dict, Optional, Iterator, List
@@ -14,6 +16,7 @@ from src.scope_resolution import (
 )
 from src.graph import ScopeNode, NodeKind, EdgeKind
 from src.utils import TextRange
+from src.languages import LANG_PARSER
 
 
 class Scoping(str, Enum):
@@ -87,6 +90,64 @@ class ScopeGraph:
         new_def = ScopeNode(range=new.range, type=NodeKind.DEFINITION)
         new_idx = self.add_node(new_def)
         self._graph.add_edge(new_idx, self.root_idx, type=EdgeKind.DefToScope)
+
+    def insert_ref(self, new: Reference, src: bytearray) -> None:
+        possible_defs = []
+        possible_imports = []
+
+        local_scope_idx = self.scope_by_range(new.range, self.root_idx)
+        if local_scope_idx is not None:
+            # traverse the scopes from the current-scope to the root-scope
+            for scope in self.scope_stack(local_scope_idx):
+                # find candidate definitions in each scope
+                for local_def in [
+                    src
+                    for src, dst, attrs in self._graph.in_edges(scope, data=True)
+                    if attrs["type"] == EdgeKind.DefToScope
+                ]:
+                    node = self.get_node(local_def)
+                    if node.type == NodeKind.DEFINITION:
+                        def_node = LocalDef(node.range, node.symbol_id)
+                        print("New: ", new.name(src), "Def: ", def_node.name(src))
+                        if new.name(src) == def_node.name(src):
+                            # if (
+                            #     def_node.symbol_id is None
+                            #     or new.symbol_id is None
+                            #     or def_node.symbol_id.namespace_idx
+                            #     == new.symbol_id.namespace_idx
+                            # ):
+                            possible_defs.append(local_def)
+
+                # find candidate imports in each scope
+                for local_import in [
+                    src
+                    for src, dst, attrs in self._graph.in_edges(scope, data=True)
+                    if attrs["type"] == EdgeKind.ImportToScope
+                ]:
+                    node = self.get_node(local_import)
+                    if node.type == NodeKind.IMPORT:
+                        import_node = LocalImport(node.range)
+                        print("IMport name: ", import_node.name(src))
+                        if new.name(src) == import_node.name(src):
+                            possible_imports.append(local_import)
+
+        if possible_defs or possible_imports:
+            new_ref = ScopeNode(range=new.range, type=NodeKind.REFERENCE)
+            ref_idx = self.add_node(new_ref)
+            for def_idx in possible_defs:
+                self._graph.add_edge(ref_idx, def_idx, type=EdgeKind.RefToDef)
+            for imp_idx in possible_imports:
+                self._graph.add_edge(ref_idx, imp_idx, type=EdgeKind.RefToImport)
+
+    def definitions(self, reference_node: int) -> Iterator[int]:
+        """
+        Produce possible definitions for a reference
+        """
+        return (
+            v
+            for u, v, attrs in self._graph.out_edges(reference_node, data=True)
+            if attrs["type"] == EdgeKind.RefToDef
+        )
 
     def parent_scope(self, start: int) -> Optional[int]:
         """
@@ -162,7 +223,10 @@ class LocalRefCapture(BaseModel):
     symbol: Optional[str]
 
 
-def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
+def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph:
+    parser = LANG_PARSER[language]
+    query, root_node = parser._build_query(src_bytes)
+
     local_def_captures: List[LocalDefCapture] = []
     local_ref_captures: List[LocalRefCapture] = []
     local_scope_capture_indices: List = []
@@ -172,7 +236,12 @@ def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
     capture_map: Dict[int, TextRange] = {}
 
     for i, (node, capture_name) in enumerate(query.captures(root_node)):
-        capture_map[i] = (node.range.start_point[0], node.range.end_point[0])
+        capture_map[i] = TextRange(
+            start_byte=node.start_byte,
+            end_byte=node.end_byte,
+            start_point=node.start_point,
+            end_point=node.end_point,
+        )
 
         parts = capture_name.split(".")
         match parts:
@@ -215,23 +284,28 @@ def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
             case ["local", "import"]:
                 local_import_capture_indices.append(i)
 
-    root_range = TextRange(start=root_node.start_point[0], end=root_node.end_point[0])
+    root_range = TextRange(
+        start_byte=root_node.start_byte,
+        end_byte=root_node.end_byte,
+        start_point=root_node.start_point,
+        end_point=root_node.end_point,
+    )
     scope_graph = ScopeGraph(root_range)
 
     # insert scopes first
     for i in local_scope_capture_indices:
-        scope_graph.insert_local_scope(LocalScope(*capture_map[i]))
+        scope_graph.insert_local_scope(LocalScope(capture_map[i]))
 
     # insert imports
     for i in local_import_capture_indices:
-        scope_graph.insert_local_import(LocalImport(*capture_map[i]))
+        scope_graph.insert_local_import(LocalImport(capture_map[i]))
 
     # insert defs
     for def_capture in local_def_captures:
         # TODO: probably should add this abstraction for
         # skipping out on symbol namespace finding ...
-        start, end = capture_map[def_capture.index]
-        local_def = LocalDef(start, end, def_capture.symbol)
+        range = capture_map[def_capture.index]
+        local_def = LocalDef(range, def_capture.symbol)
         match def_capture.scoping:
             case Scoping.GLOBAL:
                 scope_graph.insert_global_def(local_def)
@@ -240,4 +314,19 @@ def build_scope_graph(query: Query, root_node: Node, root: int) -> DiGraph:
             case Scoping.LOCAL:
                 scope_graph.insert_local_def(local_def)
 
+    # insert refs
+    for local_ref_capture in local_ref_captures:
+        index = local_ref_capture.index
+        symbol = local_ref_capture.symbol
+
+        range = capture_map[index]
+        # if the symbol is present, is it one of the supported symbols for this language?
+        symbol_id = symbol if symbol in namespaces else None
+        new_ref = Reference(range, symbol_id=symbol_id)
+
+        scope_graph.insert_ref(new_ref, src_bytes)
+
+    # return scope_graph
+
     print(scope_graph.to_str())
+    return scope_graph
