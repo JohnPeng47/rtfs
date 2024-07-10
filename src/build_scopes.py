@@ -53,7 +53,7 @@ class ScopeGraph:
         """
         parent_scope = self.scope_by_range(new.range, self.root_idx)
         if parent_scope is not None:
-            new_node = ScopeNode(range=new.range, type=NodeKind.IMPORT)
+            new_node = ScopeNode(range=new.range, name=new.name, type=NodeKind.IMPORT)
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ImportToScope)
 
@@ -63,7 +63,9 @@ class ScopeGraph:
         """
         defining_scope = self.scope_by_range(new.range, self.root_idx)
         if defining_scope is not None:
-            new_def = ScopeNode(range=new.range, type=NodeKind.DEFINITION)
+            new_def = ScopeNode(
+                range=new.range, name=new.name, type=NodeKind.DEFINITION
+            )
             new_idx = self.add_node(new_def)
             self._graph.add_edge(new_idx, defining_scope, type=EdgeKind.DefToScope)
 
@@ -73,7 +75,9 @@ class ScopeGraph:
         """
         defining_scope = self.scope_by_range(new.range, self.root_idx)
         if defining_scope is not None:
-            new_def = ScopeNode(range=new.range, type=NodeKind.DEFINITION)
+            new_def = ScopeNode(
+                range=new.range, name=new.name, type=NodeKind.DEFINITION
+            )
             new_idx = self.add_node(new_def)
 
             # if the parent scope exists, insert this def there, if not,
@@ -87,11 +91,11 @@ class ScopeGraph:
         """
         Insert a def into the scope-graph, at the root scope
         """
-        new_def = ScopeNode(range=new.range, type=NodeKind.DEFINITION)
+        new_def = ScopeNode(range=new.range, name=new.name, type=NodeKind.DEFINITION)
         new_idx = self.add_node(new_def)
         self._graph.add_edge(new_idx, self.root_idx, type=EdgeKind.DefToScope)
 
-    def insert_ref(self, new: Reference, src: bytearray) -> None:
+    def insert_ref(self, new: Reference) -> None:
         possible_defs = []
         possible_imports = []
 
@@ -105,11 +109,10 @@ class ScopeGraph:
                     for src, dst, attrs in self._graph.in_edges(scope, data=True)
                     if attrs["type"] == EdgeKind.DefToScope
                 ]:
-                    node = self.get_node(local_def)
-                    if node.type == NodeKind.DEFINITION:
-                        def_node = LocalDef(node.range, node.symbol_id)
-                        print("New: ", new.name(src), "Def: ", def_node.name(src))
-                        if new.name(src) == def_node.name(src):
+                    def_node = self.get_node(local_def)
+                    if def_node.type == NodeKind.DEFINITION:
+                        print("New: ", new.name, "Def: ", def_node.name)
+                        if new.name == def_node.name:
                             # if (
                             #     def_node.symbol_id is None
                             #     or new.symbol_id is None
@@ -124,28 +127,27 @@ class ScopeGraph:
                     for src, dst, attrs in self._graph.in_edges(scope, data=True)
                     if attrs["type"] == EdgeKind.ImportToScope
                 ]:
-                    node = self.get_node(local_import)
-                    if node.type == NodeKind.IMPORT:
-                        import_node = LocalImport(node.range)
-                        print("IMport name: ", import_node.name(src))
-                        if new.name(src) == import_node.name(src):
+                    import_node = self.get_node(local_import)
+                    if import_node.type == NodeKind.IMPORT:
+                        print("Import name: ", import_node.name)
+                        if new.name == import_node.name:
                             possible_imports.append(local_import)
 
         if possible_defs or possible_imports:
-            new_ref = ScopeNode(range=new.range, type=NodeKind.REFERENCE)
+            new_ref = ScopeNode(range=new.range, name=new.name, type=NodeKind.REFERENCE)
             ref_idx = self.add_node(new_ref)
             for def_idx in possible_defs:
                 self._graph.add_edge(ref_idx, def_idx, type=EdgeKind.RefToDef)
             for imp_idx in possible_imports:
                 self._graph.add_edge(ref_idx, imp_idx, type=EdgeKind.RefToImport)
 
-    def definitions(self, reference_node: int) -> Iterator[int]:
+    def definitions(self, start: int) -> Iterator[int]:
         """
-        Produce possible definitions for a reference
+        Get all definitions in the scope and child scope
         """
         return (
             v
-            for u, v, attrs in self._graph.out_edges(reference_node, data=True)
+            for u, v, attrs in self._graph.out_edges(start, data=True)
             if attrs["type"] == EdgeKind.RefToDef
         )
 
@@ -204,7 +206,13 @@ class ScopeGraph:
 
         for u, v, attrs in self._graph.edges(data=True):
             edge_type = attrs["type"]
-            repr += f"{u} --{edge_type}-> {v}\n"
+            u_data = ""
+            v_data = ""
+            if edge_type == EdgeKind.RefToDef or edge_type == EdgeKind.RefToImport:
+                u_data = self.get_node(u).name
+                v_data = self.get_node(v).name
+
+            repr += f"{u}:{u_data} --{edge_type}-> {v}:{v_data}\n"
 
         return repr
 
@@ -298,14 +306,14 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph
 
     # insert imports
     for i in local_import_capture_indices:
-        scope_graph.insert_local_import(LocalImport(capture_map[i]))
+        scope_graph.insert_local_import(LocalImport(capture_map[i], src_bytes))
 
     # insert defs
     for def_capture in local_def_captures:
         # TODO: probably should add this abstraction for
         # skipping out on symbol namespace finding ...
         range = capture_map[def_capture.index]
-        local_def = LocalDef(range, def_capture.symbol)
+        local_def = LocalDef(range, src_bytes, def_capture.symbol)
         match def_capture.scoping:
             case Scoping.GLOBAL:
                 scope_graph.insert_global_def(local_def)
@@ -322,11 +330,15 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph
         range = capture_map[index]
         # if the symbol is present, is it one of the supported symbols for this language?
         symbol_id = symbol if symbol in namespaces else None
-        new_ref = Reference(range, symbol_id=symbol_id)
+        new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
 
-        scope_graph.insert_ref(new_ref, src_bytes)
+        scope_graph.insert_ref(new_ref)
 
     # return scope_graph
 
     print(scope_graph.to_str())
+
+    for d in scope_graph.definitions(5):
+        print(d)
+
     return scope_graph

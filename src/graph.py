@@ -17,6 +17,7 @@ class ScopeNode(BaseModel):
     range: TextRange
     type: NodeKind
     symbol_id: Optional[str] = None
+    name: Optional[str] = ""
 
 
 class EdgeKind(str, Enum):

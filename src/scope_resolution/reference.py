@@ -9,9 +9,9 @@ class Reference:
     range: TextRange
     symbol_id: Optional[SymbolId]
 
-    def __init__(self, range: TextRange, symbol_id: Optional[SymbolId]) -> "Reference":
+    def __init__(
+        self, range: TextRange, buffer: bytearray, symbol_id: Optional[SymbolId]
+    ) -> "Reference":
         self.range = range
         self.symbol_id = symbol_id
-
-    def name(self, buffer: bytes) -> bytes:
-        return buffer[self.range.start_byte : self.range.end_byte]
+        self.name = buffer[self.range.start_byte : self.range.end_byte].decode("utf-8")

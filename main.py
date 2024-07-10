@@ -1,4 +1,3 @@
-from src.languages.python.python import PythonParse
 from src.build_scopes import build_scope_graph
 
 test = """

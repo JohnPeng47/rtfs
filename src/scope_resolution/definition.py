@@ -8,10 +8,11 @@ from src.utils import SymbolId, TextRange
 class LocalDef:
     range: TextRange
     symbol: str
+    name: str
 
-    def __init__(self, range: TextRange, symbol: Optional[str]) -> "LocalDef":
+    def __init__(
+        self, range: TextRange, buffer: bytearray, symbol: Optional[str]
+    ) -> "LocalDef":
         self.range = range
         self.symbol = symbol
-
-    def _name(self, buffer: bytes) -> bytes:
-        return buffer[self.range.start_byte : self.range.end_byte]
+        self.name = buffer[self.range.start_byte : self.range.end_byte].decode("utf-8")
