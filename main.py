@@ -1,4 +1,5 @@
 from src.build_scopes import build_scope_graph
+from repo_graph import Module
 
 # test = """
 # import namespace.abc
@@ -12,6 +13,8 @@ from src.build_scopes import build_scope_graph
 #         pass
 # """
 test = """
+h = 1
+
 def func1():
     a = 1
     b = 2
@@ -29,5 +32,7 @@ def func1():
 #     a = 1
 # """
 
+scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
+module = Module(scope_graph)
 
-build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
+print(module.exports)

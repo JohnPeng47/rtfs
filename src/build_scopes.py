@@ -65,7 +65,10 @@ class ScopeGraph:
         defining_scope = self.scope_by_range(new.range, self.root_idx)
         if defining_scope is not None:
             new_def = ScopeNode(
-                range=new.range, name=new.name, type=NodeKind.DEFINITION
+                range=new.range,
+                name=new.name,
+                type=NodeKind.DEFINITION,
+                def_type=new.symbol,
             )
             new_idx = self.add_node(new_def)
             self._graph.add_edge(new_idx, defining_scope, type=EdgeKind.DefToScope)
@@ -77,7 +80,10 @@ class ScopeGraph:
         defining_scope = self.scope_by_range(new.range, self.root_idx)
         if defining_scope is not None:
             new_def = ScopeNode(
-                range=new.range, name=new.name, type=NodeKind.DEFINITION
+                range=new.range,
+                name=new.name,
+                type=NodeKind.DEFINITION,
+                def_type=new.symbol,
             )
             new_idx = self.add_node(new_def)
 
@@ -92,7 +98,12 @@ class ScopeGraph:
         """
         Insert a def into the scope-graph, at the root scope
         """
-        new_def = ScopeNode(range=new.range, name=new.name, type=NodeKind.DEFINITION)
+        new_def = ScopeNode(
+            range=new.range,
+            name=new.name,
+            type=NodeKind.DEFINITION,
+            def_type=new.symbol,
+        )
         new_idx = self.add_node(new_def)
         self._graph.add_edge(new_idx, self.root_idx, type=EdgeKind.DefToScope)
 
@@ -147,13 +158,20 @@ class ScopeGraph:
         Get all definitions in the scope and child scope
         """
         return (
-            self.get_node(v)
+            u
             for u, v, attrs in self._graph.in_edges(start, data=True)
             if attrs["type"] == EdgeKind.DefToScope
         )
 
-    def exports(self) -> Iterator[int]:
-        return self.definitions(self.root_idx)
+    def child_scopes(self, start: int) -> Iterator[int]:
+        """
+        Get all child scopes of the given scope
+        """
+        return (
+            u
+            for u, v, attrs in self._graph.edges(data=True)
+            if attrs["type"] == EdgeKind.ScopeToScope and v == start
+        )
 
     def parent_scope(self, start: int) -> Optional[int]:
         """
@@ -346,8 +364,4 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph
     # return scope_graph
 
     print(scope_graph.to_str())
-
-    for d in scope_graph.exports():
-        print(d)
-
     return scope_graph

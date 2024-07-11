@@ -16,7 +16,8 @@ class NodeKind(str, Enum):
 class ScopeNode(BaseModel):
     range: TextRange
     type: NodeKind
-    symbol_id: Optional[str] = None
+    def_type: Optional[str] = ""
+    symblo_id: Optional[str] = None
     name: Optional[str] = ""
 
 
