@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from typing import Optional, Dict
+from typing import Optional, Dict, NewType
 from enum import Enum
 
 from src.utils import TextRange

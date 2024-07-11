@@ -3,16 +3,6 @@ from typing import Optional, List
 
 from src.utils import TextRange
 from src.graph import NodeKind
-from enum import Enum
-
-
-class ModuleType(str, Enum):
-    # a local package
-    LOCAL = "local"
-    # system/core lib
-    SYS = "sys"
-    # third party lib
-    THIRD_PARTY = "third_party"
 
 
 def parse_module(buffer: bytearray, range: TextRange) -> str:

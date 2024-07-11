@@ -42,5 +42,7 @@ def func1():
 # """
 
 scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
+
+
 # module = Module(scope_graph)
 # print(module.exports)

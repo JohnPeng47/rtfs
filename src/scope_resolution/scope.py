@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Optional, Iterator
+from typing import Optional, Iterator, NewType
 from networkx import DiGraph
 
 from src.graph import NodeKind, ScopeNode, EdgeKind
-from src.utils import SymbolId, TextRange
+from src.utils import TextRange
 
 
 @dataclass

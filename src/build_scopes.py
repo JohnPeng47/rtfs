@@ -1,18 +1,10 @@
 from pydantic import BaseModel
 from networkx import DiGraph
-from dataclasses import asdict
 
-from tree_sitter import Query, Node
-
-from typing import Dict, Optional, Iterator, List
+from typing import Dict, Optional, Iterator, List, NewType
 from enum import Enum
 
-from src.scope_resolution import (
-    LocalScope,
-    LocalDef,
-    Reference,
-    ScopeStack,
-)
+from src.scope_resolution import LocalScope, LocalDef, Reference, ScopeStack
 from src.scope_resolution.imports import (
     LocalImportStmt,
     parse_module,
@@ -22,6 +14,9 @@ from src.scope_resolution.imports import (
 from src.graph import ScopeNode, NodeKind, EdgeKind
 from src.utils import TextRange
 from src.languages import LANG_PARSER
+
+
+ScopeID = NewType("ScopeID", int)
 
 
 class Scoping(str, Enum):
@@ -158,7 +153,7 @@ class ScopeGraph:
             for imp_idx in possible_imports:
                 self._graph.add_edge(ref_idx, imp_idx, type=EdgeKind.RefToImport)
 
-    def scopes(self) -> Iterator[int]:
+    def scopes(self) -> Iterator[ScopeID]:
         """
         Return all scopes in the graph
         """
@@ -190,7 +185,7 @@ class ScopeGraph:
             if attrs["type"] == EdgeKind.DefToScope
         )
 
-    def child_scopes(self, start: int) -> Iterator[int]:
+    def child_scopes(self, start: ScopeID) -> Iterator[ScopeID]:
         """
         Get all child scopes of the given scope
         """
@@ -200,7 +195,7 @@ class ScopeGraph:
             if attrs["type"] == EdgeKind.ScopeToScope and v == start
         )
 
-    def parent_scope(self, start: int) -> Optional[int]:
+    def parent_scope(self, start: ScopeID) -> Optional[ScopeID]:
         """
         Produce the parent scope of a given scope
         """
@@ -210,7 +205,7 @@ class ScopeGraph:
                     return dst
         return None
 
-    def scope_by_range(self, range: TextRange, start: int) -> int:
+    def scope_by_range(self, range: TextRange, start: ScopeID) -> ScopeID:
         """
         Returns the smallest child
         """
@@ -227,7 +222,7 @@ class ScopeGraph:
 
         return None
 
-    def scope_stack(self, start: int):
+    def scope_stack(self, start: ScopeID):
         """
         Returns stack of parent scope traversed
         """
@@ -417,7 +412,5 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
         new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
 
         scope_graph.insert_ref(new_ref)
-
-    # return scope_graph
 
     return scope_graph

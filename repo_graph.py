@@ -3,6 +3,7 @@ from pathlib import Path
 
 from src.build_scopes import ScopeGraph, build_scope_graph
 from src.scope_resolution import LocalImportStmt
+from src.codeblocks import ImportBlock
 
 
 class Module:
@@ -47,18 +48,19 @@ class RepoGraph:
     Constructs a graph of the entire repository
     """
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, lang: str = "python"):
+        self.lang = lang
         self.scopes = []
         for file in path.rglob("*.py"):
-            g = build_scope_graph(file.read_bytes(), language="python")
+            g = build_scope_graph(file.read_bytes(), language=lang)
             imports = self.get_imports(g)
-            print("Imports for file: ", file.name)
+            print("Imports for file: ", str(file))
             for imp in imports:
-                print(imp)
+                print(imp.module)
             # for imp in imports:
             #     print(imp)
 
-    def get_imports(self, g: ScopeGraph) -> List[LocalImportStmt]:
+    def get_imports(self, g: ScopeGraph) -> List[ImportBlock]:
         """
         Get all imports from a ScopeGraph
         """
@@ -67,7 +69,9 @@ class RepoGraph:
             for imp in g.imports(scope):
                 imp_node = g.get_node(imp)
                 imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
-                imports.append(imp_stmt)
+                imp_block = ImportBlock(imp_stmt, lang=self.lang)
+
+                imports.append(imp_block)
 
         return imports
 
