@@ -1,5 +1,4 @@
 from src.build_scopes import build_scope_graph
-from repo_graph import Module
 
 # test = """
 # import namespace.abc
@@ -22,7 +21,7 @@ from src.scope_resolution import (
 )
 from abc import ABC, abstractmethod
 import abc
-
+from .a import abc
 
 h = 1
 

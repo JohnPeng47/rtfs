@@ -2,6 +2,7 @@ from typing import Any, List
 from pathlib import Path
 
 from src.build_scopes import ScopeGraph, build_scope_graph
+from src.scope_resolution import LocalImportStmt
 
 
 class Module:
@@ -42,16 +43,36 @@ class Module:
 
 
 class RepoGraph:
+    """
+    Constructs a graph of the entire repository
+    """
+
     def __init__(self, path: Path):
         self.scopes = []
         for file in path.rglob("*.py"):
             g = build_scope_graph(file.read_bytes(), language="python")
-            for node in g.scopes():
+            imports = self.get_imports(g)
+            print("Imports for file: ", file.name)
+            for imp in imports:
+                print(imp)
+            # for imp in imports:
+            #     print(imp)
 
-                print(list(g.imports(node)))
+    def get_imports(self, g: ScopeGraph) -> List[LocalImportStmt]:
+        """
+        Get all imports from a ScopeGraph
+        """
+        imports = []
+        for scope in g.scopes():
+            for imp in g.imports(scope):
+                imp_node = g.get_node(imp)
+                imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
+                imports.append(imp_stmt)
+
+        return imports
 
     def get_import_root(self):
         pass
 
 
-# RepoGraph(Path("tests/repos/small_repo"))
+RepoGraph(Path("tests/repos/codecov-cli-neuteured/codecov_cli/plugins"))

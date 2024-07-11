@@ -10,9 +10,14 @@ from enum import Enum
 from src.scope_resolution import (
     LocalScope,
     LocalDef,
-    LocalImportStmt,
     Reference,
     ScopeStack,
+)
+from src.scope_resolution.imports import (
+    LocalImportStmt,
+    parse_module,
+    parse_alias,
+    parse_name,
 )
 from src.graph import ScopeNode, NodeKind, EdgeKind
 from src.utils import TextRange
@@ -43,7 +48,6 @@ class ScopeGraph:
         """
         parent_scope = self.scope_by_range(new.range, self.root_idx)
         if parent_scope is not None:
-            print(f"Inserting: ({new.range.start_point.row, new.range.end_point.row})")
             new_node = ScopeNode(range=new.range, type=NodeKind.SCOPE)
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ScopeToScope)
@@ -54,7 +58,7 @@ class ScopeGraph:
         """
         parent_scope = self.scope_by_range(new.range, self.root_idx)
         if parent_scope is not None:
-            new_node = ScopeNode(type=NodeKind.IMPORT, **new.to_data())
+            new_node = ScopeNode(**new.to_node())
 
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ImportToScope)
@@ -124,7 +128,7 @@ class ScopeGraph:
                 ]:
                     def_node = self.get_node(local_def)
                     if def_node.type == NodeKind.DEFINITION:
-                        print("New: ", new.name, "Def: ", def_node.name)
+                        # print("New: ", new.name, "Def: ", def_node.name)
                         if new.name == def_node.name:
                             # if (
                             #     def_node.symbol_id is None
@@ -135,6 +139,7 @@ class ScopeGraph:
                             possible_defs.append(local_def)
 
                 # find candidate imports in each scope
+                # TODO: fix this for new import names format
                 for local_import in [
                     src
                     for src, dst, attrs in self._graph.in_edges(scope, data=True)
@@ -142,7 +147,6 @@ class ScopeGraph:
                 ]:
                     import_node = self.get_node(local_import)
                     if import_node.type == NodeKind.IMPORT:
-                        print("Import name: ", import_node.name)
                         if new.name == import_node.name:
                             possible_imports.append(local_import)
 
@@ -314,7 +318,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
         )
 
         parts = capture_name.split(".")
-        print(node, capture_name, parts)
+        # print(node, capture_name, parts)
         match parts:
             case [scoping, "definition", sym]:
                 index = i
@@ -372,50 +376,48 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
 
     # insert imports
     for i in local_import_stmt_capture_indices:
-        import_stmt = LocalImportStmt(range=capture_map[i])
+        range = capture_map[i]
+        module, aliases, names = "", [], []
         for part in local_import_part_capture:
             part_range = capture_map[part.index]
-            if import_stmt.range.contains(part_range):
+            if range.contains(part_range):
                 match part.part:
                     case ImportPartType.MODULE:
-                        import_stmt.set_module(src_bytes, part_range)
+                        module = parse_module(src_bytes, part_range)
                     case ImportPartType.ALIAS:
-                        import_stmt.set_alias(src_bytes, part_range)
+                        aliases.append(parse_alias(src_bytes, part_range))
                     case ImportPartType.NAME:
-                        import_stmt.add_name(src_bytes, part_range)
+                        names.append(parse_name(src_bytes, part_range))
 
-        if not import_stmt.names:
-            raise Exception("Name is not present")
-
+        import_stmt = LocalImportStmt(range, names, module=module, aliases=aliases)
         scope_graph.insert_local_import(import_stmt)
 
     # insert defs
-    # for def_capture in local_def_captures:
-    #     # TODO: probably should add this abstraction for
-    #     # skipping out on symbol namespace finding ...
-    #     range = capture_map[def_capture.index]
-    #     local_def = LocalDef(range, src_bytes, def_capture.symbol)
-    #     match def_capture.scoping:
-    #         case Scoping.GLOBAL:
-    #             scope_graph.insert_global_def(local_def)
-    #         case Scoping.HOISTED:
-    #             scope_graph.insert_hoisted_def(local_def)
-    #         case Scoping.LOCAL:
-    #             scope_graph.insert_local_def(local_def)
+    for def_capture in local_def_captures:
+        # TODO: probably should add this abstraction for
+        # skipping out on symbol namespace finding ...
+        range = capture_map[def_capture.index]
+        local_def = LocalDef(range, src_bytes, def_capture.symbol)
+        match def_capture.scoping:
+            case Scoping.GLOBAL:
+                scope_graph.insert_global_def(local_def)
+            case Scoping.HOISTED:
+                scope_graph.insert_hoisted_def(local_def)
+            case Scoping.LOCAL:
+                scope_graph.insert_local_def(local_def)
 
-    # # insert refs
-    # for local_ref_capture in local_ref_captures:
-    #     index = local_ref_capture.index
-    #     symbol = local_ref_capture.symbol
+    # insert refs
+    for local_ref_capture in local_ref_captures:
+        index = local_ref_capture.index
+        symbol = local_ref_capture.symbol
 
-    #     range = capture_map[index]
-    #     # if the symbol is present, is it one of the supported symbols for this language?
-    #     symbol_id = symbol if symbol in namespaces else None
-    #     new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
+        range = capture_map[index]
+        # if the symbol is present, is it one of the supported symbols for this language?
+        symbol_id = symbol if symbol in namespaces else None
+        new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
 
-    #     scope_graph.insert_ref(new_ref)
+        scope_graph.insert_ref(new_ref)
 
-    # # return scope_graph
-
-    # print(scope_graph.to_str())
     # return scope_graph
+
+    return scope_graph
