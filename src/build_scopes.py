@@ -43,6 +43,7 @@ class ScopeGraph:
         """
         parent_scope = self.scope_by_range(new.range, self.root_idx)
         if parent_scope is not None:
+            print(f"Inserting: ({new.range.start_point.row, new.range.end_point.row})")
             new_node = ScopeNode(range=new.range, type=NodeKind.SCOPE)
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ScopeToScope)
@@ -146,10 +147,13 @@ class ScopeGraph:
         Get all definitions in the scope and child scope
         """
         return (
-            v
-            for u, v, attrs in self._graph.out_edges(start, data=True)
-            if attrs["type"] == EdgeKind.RefToDef
+            self.get_node(v)
+            for u, v, attrs in self._graph.in_edges(start, data=True)
+            if attrs["type"] == EdgeKind.DefToScope
         )
+
+    def exports(self) -> Iterator[int]:
+        return self.definitions(self.root_idx)
 
     def parent_scope(self, start: int) -> Optional[int]:
         """
@@ -208,7 +212,12 @@ class ScopeGraph:
             edge_type = attrs["type"]
             u_data = ""
             v_data = ""
-            if edge_type == EdgeKind.RefToDef or edge_type == EdgeKind.RefToImport:
+
+            if (
+                edge_type == EdgeKind.RefToDef
+                or edge_type == EdgeKind.RefToImport
+                or EdgeKind.DefToScope
+            ):
                 u_data = self.get_node(u).name
                 v_data = self.get_node(v).name
 
@@ -338,7 +347,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph
 
     print(scope_graph.to_str())
 
-    for d in scope_graph.definitions(5):
+    for d in scope_graph.exports():
         print(d)
 
     return scope_graph

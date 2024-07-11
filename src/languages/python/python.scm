@@ -38,7 +38,7 @@
 
 ;; def a()
 (function_definition
-  (identifier) @hoist.definition.function)
+  (identifier) @local.definition.function)
 
 ;; def _(a, b, c):
 (parameters
