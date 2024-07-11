@@ -95,39 +95,65 @@
   .
   (identifier) @local.definition.variable)
 
-;; imports:
-;;
-;;     import a, b
-;;     import module.submodule.c
-;;
-;; here, `a`, `b`, `c` are imports, `module` and
-;; `submodule` are ignored. so we capture the last
-;; child of the `dotted_name` node using an anchor.
+;;Imports:
+
+;;   
+;;    import a, b
+;;    import module.submodule.c
+;;   
 (import_statement
   (dotted_name
-    (identifier) @local.import
-    .))
+    (identifier) @local.import.name)+) @local.import.statement
 
-;; import a as b
-;;
-;; `a` is ignored
-;; `b` is an import
+;;    import a as b
+;;    
+;;    `a` is ignored
+;;    `b` is an import
 (import_statement
   (aliased_import
     "as"
     (identifier) @local.import))
 
-;; from module import name1, name2
+;;    from module import name1, name2
+;;    from module import (
+;;       LocalScope,
+;;       LocalDef,
+;;    )
 (import_from_statement
+  module_name: 
+    (dotted_name) @local.import.module
   name: 
-  (dotted_name
-    (identifier) @local.import))
+    (dotted_name 
+      (identifier) @local.import.name)+
+) @local.import.statement
 
-;; from __future__ import name
-(future_import_statement
-  name:
-  (dotted_name 
-    (identifier) @local.import))
+;;;; aliased (alias first)
+;;;;    from module import name1, name2
+;;;;    from module import (
+;;;;       LocalScope,
+;;;;       LocalDef,
+;;;;    )
+;;(import_from_statement
+;;  module_name: (dotted_name) @local.import.module
+;;  name: (
+;;    (aliased_import
+;;      name: (dotted_name (identifier) @local.import.name)
+;;      alias: (identifier) @local.import.alias)?
+;;  )+
+;;) @local.import.statement
+;;
+;;
+;;;; from module import *
+;;;;(import_from_statement
+;;;;  module_name: (dotted_name) @local.import.module
+;;;;  name: (wildcard_import) @local.import.wildcard)
+;;;;
+;;;;;; from __future__ import name
+;;;;(future_import_statement
+;;;;  module_name: (dotted_name) @local.import.module
+;;;;  name: (aliased_import
+;;;;    name: (identifier) @local.import.name
+;;;;    alias: (identifier)? @local.import.alias)?)
 
 ;; class A
 (class_definition

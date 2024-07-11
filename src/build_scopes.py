@@ -10,7 +10,7 @@ from enum import Enum
 from src.scope_resolution import (
     LocalScope,
     LocalDef,
-    LocalImport,
+    LocalImportStmt,
     Reference,
     ScopeStack,
 )
@@ -48,13 +48,14 @@ class ScopeGraph:
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ScopeToScope)
 
-    def insert_local_import(self, new: LocalImport):
+    def insert_local_import(self, new: LocalImportStmt):
         """
         Insert import into smallest enclosing parent scope
         """
         parent_scope = self.scope_by_range(new.range, self.root_idx)
         if parent_scope is not None:
-            new_node = ScopeNode(range=new.range, name=new.name, type=NodeKind.IMPORT)
+            new_node = ScopeNode(type=NodeKind.IMPORT, **new.to_data())
+
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ImportToScope)
 
@@ -153,6 +154,28 @@ class ScopeGraph:
             for imp_idx in possible_imports:
                 self._graph.add_edge(ref_idx, imp_idx, type=EdgeKind.RefToImport)
 
+    def scopes(self) -> Iterator[int]:
+        """
+        Return all scopes in the graph
+        """
+        return iter(
+            [
+                u
+                for u, attrs in self._graph.nodes(data=True)
+                if attrs["type"] == NodeKind.SCOPE
+            ]
+        )
+
+    def imports(self, start: int) -> Iterator[int]:
+        """
+        Get all imports in the scope
+        """
+        return (
+            u
+            for u, v, attrs in self._graph.in_edges(start, data=True)
+            if attrs["type"] == EdgeKind.ImportToScope
+        )
+
     def definitions(self, start: int) -> Iterator[int]:
         """
         Get all definitions in the scope and child scope
@@ -211,14 +234,14 @@ class ScopeGraph:
         Adds node and increments node_counter for its id
         """
         id = self._node_counter
-        self._graph.add_node(id, attrs=node.dict())
+        self._graph.add_node(id, **node.dict())
 
         self._node_counter += 1
 
         return id
 
     def get_node(self, idx: int):
-        return ScopeNode(**self._graph.nodes[idx]["attrs"])
+        return ScopeNode(**self._graph.nodes(data=True)[idx])
 
     def to_str(self):
         """
@@ -258,14 +281,26 @@ class LocalRefCapture(BaseModel):
     symbol: Optional[str]
 
 
-def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph:
+class ImportPartType(str, Enum):
+    MODULE = "module"
+    ALIAS = "alias"
+    NAME = "name"
+
+
+class LocalImportPartCapture(BaseModel):
+    index: int
+    part: str
+
+
+def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGraph:
     parser = LANG_PARSER[language]
     query, root_node = parser._build_query(src_bytes)
 
     local_def_captures: List[LocalDefCapture] = []
     local_ref_captures: List[LocalRefCapture] = []
     local_scope_capture_indices: List = []
-    local_import_capture_indices: List = []
+    local_import_stmt_capture_indices: List = []
+    local_import_part_capture: List[LocalImportPartCapture] = []
 
     # capture_id -> range map
     capture_map: Dict[int, TextRange] = {}
@@ -279,6 +314,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph
         )
 
         parts = capture_name.split(".")
+        print(node, capture_name, parts)
         match parts:
             case [scoping, "definition", sym]:
                 index = i
@@ -316,8 +352,11 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph
                 local_ref_captures.append(l)
             case ["local", "scope"]:
                 local_scope_capture_indices.append(i)
-            case ["local", "import"]:
-                local_import_capture_indices.append(i)
+            case ["local", "import", "statement"]:
+                local_import_stmt_capture_indices.append(i)
+            case ["local", "import", part]:
+                l = LocalImportPartCapture(index=i, part=part)
+                local_import_part_capture.append(l)
 
     root_range = TextRange(
         start_byte=root_node.start_byte,
@@ -332,36 +371,51 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> DiGraph
         scope_graph.insert_local_scope(LocalScope(capture_map[i]))
 
     # insert imports
-    for i in local_import_capture_indices:
-        scope_graph.insert_local_import(LocalImport(capture_map[i], src_bytes))
+    for i in local_import_stmt_capture_indices:
+        import_stmt = LocalImportStmt(range=capture_map[i])
+        for part in local_import_part_capture:
+            part_range = capture_map[part.index]
+            if import_stmt.range.contains(part_range):
+                match part.part:
+                    case ImportPartType.MODULE:
+                        import_stmt.set_module(src_bytes, part_range)
+                    case ImportPartType.ALIAS:
+                        import_stmt.set_alias(src_bytes, part_range)
+                    case ImportPartType.NAME:
+                        import_stmt.add_name(src_bytes, part_range)
+
+        if not import_stmt.names:
+            raise Exception("Name is not present")
+
+        scope_graph.insert_local_import(import_stmt)
 
     # insert defs
-    for def_capture in local_def_captures:
-        # TODO: probably should add this abstraction for
-        # skipping out on symbol namespace finding ...
-        range = capture_map[def_capture.index]
-        local_def = LocalDef(range, src_bytes, def_capture.symbol)
-        match def_capture.scoping:
-            case Scoping.GLOBAL:
-                scope_graph.insert_global_def(local_def)
-            case Scoping.HOISTED:
-                scope_graph.insert_hoisted_def(local_def)
-            case Scoping.LOCAL:
-                scope_graph.insert_local_def(local_def)
+    # for def_capture in local_def_captures:
+    #     # TODO: probably should add this abstraction for
+    #     # skipping out on symbol namespace finding ...
+    #     range = capture_map[def_capture.index]
+    #     local_def = LocalDef(range, src_bytes, def_capture.symbol)
+    #     match def_capture.scoping:
+    #         case Scoping.GLOBAL:
+    #             scope_graph.insert_global_def(local_def)
+    #         case Scoping.HOISTED:
+    #             scope_graph.insert_hoisted_def(local_def)
+    #         case Scoping.LOCAL:
+    #             scope_graph.insert_local_def(local_def)
 
-    # insert refs
-    for local_ref_capture in local_ref_captures:
-        index = local_ref_capture.index
-        symbol = local_ref_capture.symbol
+    # # insert refs
+    # for local_ref_capture in local_ref_captures:
+    #     index = local_ref_capture.index
+    #     symbol = local_ref_capture.symbol
 
-        range = capture_map[index]
-        # if the symbol is present, is it one of the supported symbols for this language?
-        symbol_id = symbol if symbol in namespaces else None
-        new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
+    #     range = capture_map[index]
+    #     # if the symbol is present, is it one of the supported symbols for this language?
+    #     symbol_id = symbol if symbol in namespaces else None
+    #     new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
 
-        scope_graph.insert_ref(new_ref)
+    #     scope_graph.insert_ref(new_ref)
 
+    # # return scope_graph
+
+    # print(scope_graph.to_str())
     # return scope_graph
-
-    print(scope_graph.to_str())
-    return scope_graph

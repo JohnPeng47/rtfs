@@ -13,12 +13,22 @@ from repo_graph import Module
 #         pass
 # """
 test = """
+from src.scope_resolution import (
+    LocalScope,
+    LocalDef,
+    LocalImportStmt,
+    Reference,
+    ScopeStack,
+)
+from abc import ABC, abstractmethod
+import abc
+
+
 h = 1
 
 def func1():
     a = 1
     b = 2
-
 """
 
 # test = """
@@ -33,6 +43,5 @@ def func1():
 # """
 
 scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
-module = Module(scope_graph)
-
-print(module.exports)
+# module = Module(scope_graph)
+# print(module.exports)

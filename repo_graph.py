@@ -1,6 +1,7 @@
 from typing import Any, List
+from pathlib import Path
 
-from src.build_scopes import ScopeGraph
+from src.build_scopes import ScopeGraph, build_scope_graph
 
 
 class Module:
@@ -35,3 +36,22 @@ class Module:
                     continue
 
         return exports
+
+    def get_imports(self):
+        pass
+
+
+class RepoGraph:
+    def __init__(self, path: Path):
+        self.scopes = []
+        for file in path.rglob("*.py"):
+            g = build_scope_graph(file.read_bytes(), language="python")
+            for node in g.scopes():
+
+                print(list(g.imports(node)))
+
+    def get_import_root(self):
+        pass
+
+
+# RepoGraph(Path("tests/repos/small_repo"))

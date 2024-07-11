@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from typing import Optional
+from typing import Optional, Dict
 from enum import Enum
 
 from src.utils import TextRange
@@ -17,8 +17,8 @@ class ScopeNode(BaseModel):
     range: TextRange
     type: NodeKind
     def_type: Optional[str] = ""
-    symblo_id: Optional[str] = None
     name: Optional[str] = ""
+    data: Optional[Dict] = {}
 
 
 class EdgeKind(str, Enum):

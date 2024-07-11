@@ -15,7 +15,6 @@ class A:
         pass
 
 """
-
     scope_graph = build_scope_graph(
         bytearray(test, encoding="utf-8"), language="python"
     )
