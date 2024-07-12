@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from dataclasses import dataclass
 from typing import TypeAlias, Tuple, List
 import json
-from config import SYS_MODULES_LIST, THIRD_PARTY_MODULES_LIST
+from scope_graph.config import SYS_MODULES_LIST, THIRD_PARTY_MODULES_LIST
 
 from logging import getLogger
 

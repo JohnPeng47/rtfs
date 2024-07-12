@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, NewType
 from enum import Enum
 
-from src.utils import TextRange
+from scope_graph.utils import TextRange
 
 
 class NodeKind(str, Enum):

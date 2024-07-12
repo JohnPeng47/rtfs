@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Iterator, Tuple
-from config import FILE_GLOB_ENDING, LANGUAGE
+from scope_graph.config import FILE_GLOB_ENDING, LANGUAGE
 
-from src.codeblocks.namespace import NameSpace
+from scope_graph.codeblocks.namespace import NameSpace
 
 SRC_EXT = FILE_GLOB_ENDING[LANGUAGE]
 

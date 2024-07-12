@@ -1,4 +1,4 @@
-from src.utils import TextRange
+from scope_graph.utils import TextRange
 
 
 def range(start, end):

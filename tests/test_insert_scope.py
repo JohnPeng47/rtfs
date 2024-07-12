@@ -1,8 +1,8 @@
-from src.build_scopes import build_scope_graph
-from src.languages import PythonParse
-from src.scope_resolution.scope import LocalScope
-from src.build_scopes import ScopeGraph
-from src.utils import TextRange
+from scope_graph.build_scopes import build_scope_graph
+from scope_graph.languages import PythonParse
+from scope_graph.scope_resolution.scope import LocalScope
+from scope_graph.build_scopes import ScopeGraph
+from scope_graph.utils import TextRange
 
 
 # def test_insert_local_scopes():

@@ -1,6 +1,6 @@
-from src.build_scopes import build_scope_graph
+from scope_graph.build_scopes import build_scope_graph
 
-from src.repo_resolution.repo_graph import RepoGraph
+from scope_graph.repo_resolution.repo_graph import RepoGraph
 from pathlib import Path
 
 # test = """
@@ -15,7 +15,7 @@ from pathlib import Path
 #         pass
 # """
 test = """
-from src.scope_resolution import (
+from scope_graph.scope_resolution import (
     LocalScope,
     LocalDef,
     LocalImportStmt,

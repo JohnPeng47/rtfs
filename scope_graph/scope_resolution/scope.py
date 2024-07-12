@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import Optional, Iterator, NewType
 from networkx import DiGraph
 
-from src.graph import NodeKind, ScopeNode, EdgeKind
-from src.utils import TextRange
+from scope_graph.graph import NodeKind, ScopeNode, EdgeKind
+from scope_graph.utils import TextRange
 
 
 @dataclass

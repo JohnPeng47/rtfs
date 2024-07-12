@@ -1,7 +1,5 @@
 from tree_sitter import Language, Parser
-
-PYTHONTS_LIB = "src/languages/python/libs/my-python.so"
-PYTHON_SCM = "src/languages/python/python.scm"
+from scope_graph.config import PYTHON_SCM, PYTHONTS_LIB
 
 
 class PythonParse:

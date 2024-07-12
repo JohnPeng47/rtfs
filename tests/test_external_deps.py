@@ -1,5 +1,5 @@
-from src.build_scopes import build_scope_graph
-from src.scope_resolution.reference import Reference
+from scope_graph.build_scopes import build_scope_graph
+from scope_graph.scope_resolution.reference import Reference
 
 
 def get_exports_with_parameters():

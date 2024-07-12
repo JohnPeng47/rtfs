@@ -1,14 +1,15 @@
 from typing import Any, List, Dict
 from pathlib import Path
 
-from src.fs import RepoFs
-from src.build_scopes import ScopeGraph, build_scope_graph
-from src.scope_resolution import LocalImportStmt
-from src.utils import SysModules, ThirdPartyModules
-from src.codeblocks.imports import Import, import_stmt_to_import
-from config import LANGUAGE
+from scope_graph.fs import RepoFs
+from scope_graph.build_scopes import ScopeGraph, build_scope_graph
+from scope_graph.scope_resolution import LocalImportStmt
+from scope_graph.utils import SysModules, ThirdPartyModules
+from scope_graph.codeblocks.imports import Import, import_stmt_to_import
+from scope_graph.config import LANGUAGE
 
 
+# rename to import graph?
 class RepoGraph:
     """
     Constructs a graph of the entire repository
@@ -90,6 +91,3 @@ class RepoGraph:
                 imports.extend(imp_blocks)
 
         return imports
-
-    def get_import_root(self):
-        pass

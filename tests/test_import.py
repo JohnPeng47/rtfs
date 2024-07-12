@@ -1,4 +1,4 @@
-from src.repo_resolution.repo_graph import RepoGraph
+from scope_graph.repo_resolution.repo_graph import RepoGraph
 from pathlib import Path
 
 

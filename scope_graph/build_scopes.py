@@ -4,16 +4,16 @@ from networkx import DiGraph
 from typing import Dict, Optional, Iterator, List, NewType
 from enum import Enum
 
-from src.scope_resolution import LocalScope, LocalDef, Reference, ScopeStack
-from src.scope_resolution.imports import (
+from scope_graph.scope_resolution import LocalScope, LocalDef, Reference, ScopeStack
+from scope_graph.scope_resolution.imports import (
     LocalImportStmt,
     parse_from,
     parse_alias,
     parse_name,
 )
-from src.graph import ScopeNode, NodeKind, EdgeKind
-from src.utils import TextRange
-from src.languages import LANG_PARSER
+from scope_graph.graph import ScopeNode, NodeKind, EdgeKind
+from scope_graph.utils import TextRange
+from scope_graph.languages import LANG_PARSER
 
 
 ScopeID = NewType("ScopeID", int)

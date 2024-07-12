@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from src.utils import SymbolId, TextRange
+from scope_graph.utils import SymbolId, TextRange
 
 
 @dataclass

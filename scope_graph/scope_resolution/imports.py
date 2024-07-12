@@ -1,8 +1,8 @@
 from dataclasses import dataclass, asdict
 from typing import Optional, List
 
-from src.utils import TextRange
-from src.graph import NodeKind
+from scope_graph.utils import TextRange
+from scope_graph.graph import NodeKind
 
 
 def parse_from(buffer: bytearray, range: TextRange) -> str:

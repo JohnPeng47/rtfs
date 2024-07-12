@@ -1,5 +1,5 @@
-from src.build_scopes import build_scope_graph
-from repo_graph import Module
+from scope_graph.build_scopes import build_scope_graph
+from scope_graph.repo_graph import Module
 
 
 def test_get_exports():

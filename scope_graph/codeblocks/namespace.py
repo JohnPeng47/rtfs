@@ -1,4 +1,4 @@
-from config import NAMESPACE_DELIMETERS, LANGUAGE
+from scope_graph.config import NAMESPACE_DELIMETERS, LANGUAGE
 from pathlib import Path
 
 delimiter = NAMESPACE_DELIMETERS[LANGUAGE]

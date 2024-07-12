@@ -3,13 +3,13 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.scope_resolution.imports import LocalImportStmt
-from src.codeblocks.namespace import NameSpace
-from src.fs import RepoFs
-from src.utils import SysModules, ThirdPartyModules
+from scope_graph.scope_resolution.imports import LocalImportStmt
+from scope_graph.codeblocks.namespace import NameSpace
+from scope_graph.fs import RepoFs
+from scope_graph.utils import SysModules, ThirdPartyModules
 
 
-from config import LANGUAGE
+from scope_graph.config import LANGUAGE
 
 
 class ModuleType(str, Enum):
