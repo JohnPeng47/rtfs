@@ -5,7 +5,7 @@ from src.utils import TextRange
 from src.graph import NodeKind
 
 
-def parse_module(buffer: bytearray, range: TextRange) -> str:
+def parse_from(buffer: bytearray, range: TextRange) -> str:
     return buffer[range.start_byte : range.end_byte].decode("utf-8")
 
 
@@ -21,6 +21,7 @@ class LocalImportStmt:
     """
     Represents a local import statement of the form:
 
+    from <from_names> import <names> as <alias>
     from module import name1, name2, name3 as alias
     """
 
@@ -28,11 +29,11 @@ class LocalImportStmt:
         self,
         range: TextRange,
         names: List[str],
-        module: Optional[str] = "",
+        from_name: List[str] = "",
         aliases: Optional[List[str]] = [],
     ):
         self.range = range
-        self.module = module
+        self.from_name = from_name
         self.aliases = aliases
         self.names = names
 
@@ -42,7 +43,7 @@ class LocalImportStmt:
             "range": self.range.dict(),
             "type": NodeKind.IMPORT,
             "data": {
-                "module": self.module,
+                "from_name": self.from_name,
                 "aliases": self.aliases,
                 "names": self.names,
             },
@@ -52,11 +53,10 @@ class LocalImportStmt:
 
     # Technically, this is the only python specific method
     def __str__(self):
-        module_str = f"from {self.module} " if self.module else ""
+        from_name = f"from {self.from_name} " if self.from_name else ""
         # TODO: fix this
         alias_str = f" as {self.aliases}" if self.aliases else ""
-        names = ", ".join(self.names)
-        # print(self.names)
-        # print(names)
 
-        return f"{module_str}import {names}{alias_str}"
+        names = ", ".join(self.names)
+
+        return f"{from_name}import {names}{alias_str}"

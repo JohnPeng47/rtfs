@@ -1,8 +1,13 @@
 import json
 from enum import Enum
+from typing import Dict
 
 from src.scope_resolution.imports import LocalImportStmt
 from src.utils import load_sys_modules
+from src.codeblocks.namespace import NameSpace
+from src.fs import RepoFs
+
+from config import LANGUAGE
 
 
 class ModuleType(str, Enum):
@@ -15,18 +20,24 @@ class ModuleType(str, Enum):
     UNKNOWN = "unknown"
 
 
+# TODO: this lang parameter needs to go
 class ImportBlock:
-    def __init__(self, import_stmt: LocalImportStmt, lang: str = "python"):
-        self.sys_modules_list = load_sys_modules(lang)
+    def __init__(self, import_stmt: LocalImportStmt, fs: RepoFs):
+        self.namespaces: Dict[NameSpace, ModuleType] = {}
         self.module_type = ModuleType.UNKNOWN
 
-        if import_stmt.module:
-            self.module = import_stmt.module
+        # resolve namespaces
+        namespaces = []
+        if import_stmt.from_name:
+            namespaces += [NameSpace(import_stmt.from_name)]
         else:
-            # name is the module
-            assert len(import_stmt.names) == 1
-            self.module = import_stmt.names[0]
+            namespaces = [NameSpace(n) for n in import_stmt.names]
 
-        # determine module type
-        if self.module in self.sys_modules_list:
-            self.module_type = ModuleType.SYS
+        # resolve module type
+        for ns in namespaces:
+            if ns.root in load_sys_modules(LANGUAGE):
+                self.module_type = ModuleType.SYS
+            else:
+                self.module_type = ModuleType.LOCAL
+
+            self.namespaces[ns] = self.module_type

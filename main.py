@@ -1,5 +1,8 @@
 from src.build_scopes import build_scope_graph
 
+from src.repo_resolution.repo_graph import RepoGraph
+from pathlib import Path
+
 # test = """
 # import namespace.abc
 
@@ -41,8 +44,8 @@ def func1():
 #     a = 1
 # """
 
-scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
+## Single file test
+# scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
 
 
-# module = Module(scope_graph)
-# print(module.exports)
+repo_graph = RepoGraph(Path("tests/repos/codecov-cli-neuteured"))

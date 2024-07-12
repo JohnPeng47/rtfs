@@ -7,7 +7,7 @@ from enum import Enum
 from src.scope_resolution import LocalScope, LocalDef, Reference, ScopeStack
 from src.scope_resolution.imports import (
     LocalImportStmt,
-    parse_module,
+    parse_from,
     parse_alias,
     parse_name,
 )
@@ -372,19 +372,21 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
     # insert imports
     for i in local_import_stmt_capture_indices:
         range = capture_map[i]
-        module, aliases, names = "", [], []
+        from_name, aliases, names = "", [], []
         for part in local_import_part_capture:
             part_range = capture_map[part.index]
             if range.contains(part_range):
                 match part.part:
                     case ImportPartType.MODULE:
-                        module = parse_module(src_bytes, part_range)
+                        from_name = parse_from(src_bytes, part_range)
                     case ImportPartType.ALIAS:
                         aliases.append(parse_alias(src_bytes, part_range))
                     case ImportPartType.NAME:
                         names.append(parse_name(src_bytes, part_range))
 
-        import_stmt = LocalImportStmt(range, names, module=module, aliases=aliases)
+        import_stmt = LocalImportStmt(
+            range, names, from_name=from_name, aliases=aliases
+        )
         scope_graph.insert_local_import(import_stmt)
 
     # insert defs

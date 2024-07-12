@@ -1,5 +1,9 @@
 from enum import Enum
 
+LANGUAGE = "python"
 
-class SupportedLangs(str, Enum):
-    PYTHON = "python"
+FILE_GLOB_ENDING = {"python": "*.py"}
+
+SUPPORTED_LANGS = {"python": "python"}
+
+NAMESPACE_DELIMETERS = {"python": "."}
