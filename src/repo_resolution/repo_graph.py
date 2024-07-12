@@ -4,7 +4,8 @@ from pathlib import Path
 from src.fs import RepoFs
 from src.build_scopes import ScopeGraph, build_scope_graph
 from src.scope_resolution import LocalImportStmt
-from src.codeblocks.imports import ImportBlock
+from src.utils import SysModules, ThirdPartyModules
+from src.codeblocks.imports import Import, import_stmt_to_import
 from config import LANGUAGE
 
 
@@ -18,9 +19,10 @@ class RepoGraph:
         self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
 
         # construct file level "connection sites" for building edges
-        self.imports: Dict[Path, List[ImportBlock]] = self.construct_imports(
+        self.imports: Dict[Path, List[Import]] = self.construct_imports(
             self.scopes_map, fs
         )
+
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
 
@@ -33,38 +35,59 @@ class RepoGraph:
         Returns all the scopes associated with the files in the directory
         """
         scope_map = {}
-        for file in fs.get_files_content():
-            scope_map[file] = build_scope_graph(file, language=LANGUAGE)
+        for path, file_content in fs.get_files_content():
+            scope_map[path] = build_scope_graph(file_content, language=LANGUAGE)
 
         return scope_map
 
+    # ultimately the output should be 3-tuple
+    # (import_stmt, path, import_type)
     def construct_imports(
         self, scopes: Dict[Path, ScopeGraph], fs: RepoFs
-    ) -> Dict[Path, List[ImportBlock]]:
+    ) -> Dict[Path, List[Import]]:
         """
         Constructs a map from file to its imports
         """
+        # lists for checking if python module is system or third party
+        sys_modules_list = SysModules(LANGUAGE)
+        third_party_modules_list = ThirdPartyModules(LANGUAGE)
+
         import_map = {}
+
         for file, scope_graph in scopes.items():
-            imports = self.get_imports(scope_graph, file, fs)
+            imports = self.get_imports(
+                scope_graph, file, fs, sys_modules_list, third_party_modules_list
+            )
             import_map[file] = imports
 
         return import_map
 
-    def get_imports(self, g: ScopeGraph, file: Path, fs: RepoFs) -> List[ImportBlock]:
+    def get_imports(
+        self,
+        g: ScopeGraph,
+        file: Path,
+        fs: RepoFs,
+        sys_modules: SysModules,
+        third_party_modules: ThirdPartyModules,
+    ) -> List[Import]:
         """
         Get all imports from a ScopeGraph
         """
         imports = []
+
         for scope in g.scopes():
             for imp in g.imports(scope):
                 imp_node = g.get_node(imp)
                 imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
+                imp_blocks = import_stmt_to_import(
+                    import_stmt=imp_stmt,
+                    filepath=file,
+                    fs=fs,
+                    sys_modules=sys_modules,
+                    third_party_modules=third_party_modules,
+                )
 
-                print(imp_stmt)
-                imp_block = ImportBlock(imp_stmt, fs)
-
-                imports.append(imp_block)
+                imports.extend(imp_blocks)
 
         return imports
 
