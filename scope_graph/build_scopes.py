@@ -159,6 +159,10 @@ class ScopeGraph:
             for imp_idx, _ in possible_imports:
                 self._graph.add_edge(ref_idx, imp_idx, type=EdgeKind.RefToImport)
 
+            # add an edge back to the originating scope of the reference
+            self._graph.add_edge(ref_idx, local_scope_idx, type=EdgeKind.RefToOrigin)
+
+
     def scopes(self) -> Iterator[ScopeID]:
         """
         Return all scopes in the graph
