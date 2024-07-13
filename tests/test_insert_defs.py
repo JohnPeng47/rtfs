@@ -7,7 +7,9 @@ from scope_graph.utils import TextRange
 
 
 def test_insert_def():
-    scope_graph = ScopeGraph(TextRange(start=1, end=6))
+    scope_graph = ScopeGraph(
+        TextRange(start_byte=1, end_byte=6, start_point=(0, 0), end_point=(0, 0))
+    )
 
     # modeling the following code:
     #
@@ -16,26 +18,40 @@ def test_insert_def():
     #        let b = 3;
     #     }
 
-    local_scope = LocalScope(1, 5)
+    local_scope = LocalScope(
+        TextRange(start_byte=1, end_byte=5, start_point=(0, 0), end_point=(0, 0))
+    )
     scope_graph.insert_local_scope(local_scope)
 
     # Insert a local definition
-    local_def = LocalDef(start=2, end=3, symbol="a")
+    local_def = LocalDef(
+        TextRange(start_byte=2, end_byte=3, start_point=(0, 0), end_point=(0, 0)),
+        buffer=bytearray(b"a"),
+        symbol="a",
+    )
     scope_graph.insert_local_def(local_def)
 
     # Insert a hoisted definition
-    hoisted_def = LocalDef(start=3, end=4, symbol="b")
+    hoisted_def = LocalDef(
+        TextRange(start_byte=3, end_byte=4, start_point=(0, 0), end_point=(0, 0)),
+        buffer=bytearray(b"b"),
+        symbol="b",
+    )
     scope_graph.insert_hoisted_def(hoisted_def)
 
     # Insert a global definition
-    global_def = LocalDef(start=4, end=5, symbol="global")
+    global_def = LocalDef(
+        TextRange(start_byte=4, end_byte=5, start_point=(0, 0), end_point=(0, 0)),
+        buffer=bytearray(b"global"),
+        symbol="global",
+    )
     scope_graph.insert_global_def(global_def)
 
     graph_state = """
-1 --ScopeToScope-> 0
-2 --DefToScope-> 1
-3 --DefToScope-> 0
-4 --DefToScope-> 0
+1: --ScopeToScope-> 0:
+2: --DefToScope-> 1:
+3: --DefToScope-> 0:
+4:a --DefToScope-> 0:
 """
 
     assert scope_graph.to_str() == graph_state

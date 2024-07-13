@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from networkx import DiGraph
 
-from typing import Dict, Optional, Iterator, List, NewType
+from typing import Dict, Optional, Iterator, List, NewType, Tuple
 from enum import Enum
 
 from scope_graph.scope_resolution import LocalScope, LocalDef, Reference, ScopeStack
@@ -124,14 +124,18 @@ class ScopeGraph:
                     def_node = self.get_node(local_def)
                     if def_node.type == NodeKind.DEFINITION:
                         # print("New: ", new.name, "Def: ", def_node.name)
-                        if new.name == def_node.name:
+
+                        # ensure that we add the first definition in the nearest ancestor scope
+                        if new.name == def_node.name and new.name not in [
+                            name for id, name in possible_defs
+                        ]:
                             # if (
                             #     def_node.symbol_id is None
                             #     or new.symbol_id is None
                             #     or def_node.symbol_id.namespace_idx
                             #     == new.symbol_id.namespace_idx
                             # ):
-                            possible_defs.append(local_def)
+                            possible_defs.append((local_def, def_node.name))
 
                 # find candidate imports in each scope
                 # TODO: fix this for new import names format
@@ -142,15 +146,17 @@ class ScopeGraph:
                 ]:
                     import_node = self.get_node(local_import)
                     if import_node.type == NodeKind.IMPORT:
-                        if new.name == import_node.name:
-                            possible_imports.append(local_import)
+                        if new.name in import_node.data["names"]:
+                            possible_imports.append((local_import, import_node.name))
 
         if possible_defs or possible_imports:
             new_ref = ScopeNode(range=new.range, name=new.name, type=NodeKind.REFERENCE)
             ref_idx = self.add_node(new_ref)
-            for def_idx in possible_defs:
+
+            for def_idx, _ in possible_defs:
                 self._graph.add_edge(ref_idx, def_idx, type=EdgeKind.RefToDef)
-            for imp_idx in possible_imports:
+
+            for imp_idx, _ in possible_imports:
                 self._graph.add_edge(ref_idx, imp_idx, type=EdgeKind.RefToImport)
 
     def scopes(self) -> Iterator[ScopeID]:
@@ -163,6 +169,17 @@ class ScopeGraph:
                 for u, attrs in self._graph.nodes(data=True)
                 if attrs["type"] == NodeKind.SCOPE
             ]
+        )
+
+    def scopes_by_range(self, range: TextRange, overlap=False) -> Iterator[ScopeID]:
+        """
+        Get all scopes that contain the given range
+        """
+        return (
+            u
+            for u, attrs in self._graph.nodes(data=True)
+            if attrs["type"] == NodeKind.SCOPE
+            and self.get_node(u).range.contains_line(range, overlap=overlap)
         )
 
     def imports(self, start: int) -> Iterator[int]:
@@ -183,6 +200,16 @@ class ScopeGraph:
             u
             for u, v, attrs in self._graph.in_edges(start, data=True)
             if attrs["type"] == EdgeKind.DefToScope
+        )
+
+    def references(self, start: int) -> Iterator[int]:
+        """
+        Get all references in the scope and child scope
+        """
+        return (
+            u
+            for u, v, attrs in self._graph.in_edges(start, data=True)
+            if attrs["type"] == EdgeKind.RefToDef
         )
 
     def child_scopes(self, start: ScopeID) -> Iterator[ScopeID]:
@@ -412,6 +439,8 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
         # if the symbol is present, is it one of the supported symbols for this language?
         symbol_id = symbol if symbol in namespaces else None
         new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
+
+        print("Inserting ref: ", new_ref.name)
 
         scope_graph.insert_ref(new_ref)
 

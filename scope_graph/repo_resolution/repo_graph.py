@@ -2,14 +2,15 @@ from typing import Any, List, Dict
 from pathlib import Path
 
 from scope_graph.fs import RepoFs
-from scope_graph.build_scopes import ScopeGraph, build_scope_graph
+from scope_graph.build_scopes import ScopeGraph, build_scope_graph, ScopeID
 from scope_graph.scope_resolution import LocalImportStmt
-from scope_graph.utils import SysModules, ThirdPartyModules
+from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
 from scope_graph.codeblocks.imports import Import, import_stmt_to_import
 from scope_graph.config import LANGUAGE
 
 
 # rename to import graph?
+# probably not, since we do want struct to hold repo level info
 class RepoGraph:
     """
     Constructs a graph of the entire repository
@@ -19,7 +20,7 @@ class RepoGraph:
         fs = RepoFs(path)
         self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
 
-        # construct file level "connection sites" for building edges
+        # construct file level "connection sites" for building eges
         self.imports: Dict[Path, List[Import]] = self.construct_imports(
             self.scopes_map, fs
         )
@@ -37,7 +38,10 @@ class RepoGraph:
         """
         scope_map = {}
         for path, file_content in fs.get_files_content():
-            scope_map[path] = build_scope_graph(file_content, language=LANGUAGE)
+            # index by full path
+            scope_map[path.resolve()] = build_scope_graph(
+                file_content, language=LANGUAGE
+            )
 
         return scope_map
 

@@ -1,3 +1,4 @@
+import tree_sitter_python as tspython
 from tree_sitter import Language, Parser
 from scope_graph.config import PYTHON_SCM, PYTHONTS_LIB
 
@@ -7,7 +8,8 @@ class PythonParse:
     def _build_query(cls, file_content: bytearray):
         query_file = open(PYTHON_SCM, "rb").read()
 
-        PY_LANGUAGE = Language(PYTHONTS_LIB, "python")
+        PY_LANGUAGE = Language(tspython.language())
+
         parser = Parser()
         parser.set_language(PY_LANGUAGE)
 

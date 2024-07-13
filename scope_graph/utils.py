@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TypeAlias, Tuple, List
 import json
 from scope_graph.config import SYS_MODULES_LIST, THIRD_PARTY_MODULES_LIST
+from pathlib import Path
 
 from logging import getLogger
 
@@ -41,6 +42,25 @@ class TextRange(BaseModel):
 
     def contains(self, range: "TextRange"):
         return range.start_byte >= self.start_byte and range.end_byte <= self.end_byte
+
+    def contains_line(self, range: "TextRange", overlap=False):
+        if overlap:
+            return (
+                range.start_point.row >= self.start_point.row
+                or range.end_point.row <= self.end_point.row
+            )
+
+        return (
+            range.start_point.row >= self.start_point.row
+            and range.end_point.row <= self.end_point.row
+        )
+
+
+def get_shortest_subpath(path: Path, root: Path) -> Path:
+    """
+    Returns the shortest subpath of the given path that is relative to the root
+    """
+    return path.relative_to(root)
 
 
 class SysModules:

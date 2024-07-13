@@ -26,4 +26,5 @@ class EdgeKind(str, Enum):
     DefToScope = "DefToScope"
     ImportToScope = "ImportToScope"
     RefToDef = "RefToDef"
+    RefToOrigin = "RefToOrigin"
     RefToImport = "RefToImport"
