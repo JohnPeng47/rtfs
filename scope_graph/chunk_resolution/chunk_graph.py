@@ -33,7 +33,7 @@ class ChunkGraph:
             resolved, unresolved = self.unresolved_refs(
                 Path(metadata.file_path), chunk_scopes
             )
-            # print(f"Chunk: {chunk.get_content()}")
+            print(f"Chunk: {chunk.get_content()}")
             print(f"Resolved: {resolved}")
             print(f"Unresolved: {unresolved}")
 

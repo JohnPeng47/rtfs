@@ -5,7 +5,7 @@ from pathlib import Path
 
 from scope_graph.build_scopes import ScopeGraph
 from scope_graph.scope_resolution.imports import LocalImportStmt
-from scope_graph.codeblocks.namespace import NameSpace
+from scope_graph.repo_resolution.namespace import NameSpace
 from scope_graph.fs import RepoFs
 from scope_graph.utils import SysModules, ThirdPartyModules
 

@@ -6,7 +6,7 @@ from scope_graph.fs import RepoFs
 from scope_graph.build_scopes import ScopeGraph, build_scope_graph, ScopeID
 from scope_graph.scope_resolution import LocalImportStmt
 from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
-from scope_graph.codeblocks.imports import Import, import_stmt_to_import
+from scope_graph.repo_resolution.imports import Import, import_stmt_to_import
 from scope_graph.config import LANGUAGE
 
 

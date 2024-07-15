@@ -1,4 +1,4 @@
-from scope_graph.codeblocks.namespace import NameSpace
+from scope_graph.repo_resolution.namespace import NameSpace
 from scope_graph.build_scopes import ScopeID
 
 from pathlib import Path

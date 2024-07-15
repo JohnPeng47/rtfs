@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Iterator, Tuple
 from scope_graph.config import FILE_GLOB_ENDING, LANGUAGE
 
-from scope_graph.codeblocks.namespace import NameSpace
+from scope_graph.repo_resolution.namespace import NameSpace
 
 SRC_EXT = FILE_GLOB_ENDING[LANGUAGE]
 
