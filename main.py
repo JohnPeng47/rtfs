@@ -31,6 +31,8 @@ h = 1
 def func1():
     a = 1
     b = 2
+    def func2():
+        c = 2
 """
 
 # test = """
@@ -45,7 +47,9 @@ def func1():
 # """
 
 ## Single file test
-# scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
 
+# test = open("tests/repos/test-import-ref/parser.py", "rb").read()
+scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
+print(scope_graph.to_str())
 
-repo_graph = RepoGraph(Path("tests/repos/codecov-cli-neuteured"))
+# repo_graph = RepoGraph(Path("tests/repos/test-import-ref"))

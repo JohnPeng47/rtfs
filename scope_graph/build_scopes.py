@@ -112,7 +112,7 @@ class ScopeGraph:
         local_scope_idx = self.scope_by_range(new.range, self.root_idx)
         if local_scope_idx is not None:
             # traverse the scopes from the current-scope to the root-scope
-            for scope in self.scope_stack(local_scope_idx):
+            for scope in self.parent_scope_stack(local_scope_idx):
                 # find candidate definitions in each scope
                 for local_def in [
                     src
@@ -257,7 +257,15 @@ class ScopeGraph:
 
         return None
 
-    def scope_stack(self, start: ScopeID):
+    def child_scope_stack(self, start: ScopeID):
+        stack = self.child_scopes(start)
+
+        for child in self.child_scopes(start):
+            stack += self.child_scope_stack(child)
+
+        return stack
+
+    def parent_scope_stack(self, start: ScopeID):
         """
         Returns stack of parent scope traversed
         """

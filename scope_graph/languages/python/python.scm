@@ -15,8 +15,8 @@
  (with_statement)
  (for_statement)
 
-;; (function_definition)
-;; (class_definition)
+(function_definition)
+(class_definition)
  ] @local.scope
 
 
