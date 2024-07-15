@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from tree_sitter import Point
 
 from dataclasses import dataclass
 from typing import TypeAlias, Tuple, List
@@ -11,12 +12,6 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 SymbolId: TypeAlias = str
-
-
-@dataclass
-class Point:
-    row: int
-    col: int
 
 
 class TextRange(BaseModel):
@@ -36,8 +31,8 @@ class TextRange(BaseModel):
         super().__init__(
             start_byte=start_byte,
             end_byte=end_byte,
-            start_point=Point(*start_point),
-            end_point=Point(*end_point),
+            start_point=start_point,
+            end_point=end_point,
         )
 
     def contains(self, range: "TextRange"):
@@ -45,9 +40,13 @@ class TextRange(BaseModel):
 
     def contains_line(self, range: "TextRange", overlap=False):
         if overlap:
+            # check that at least one of the points is within the range
             return (
                 range.start_point.row >= self.start_point.row
-                or range.end_point.row <= self.end_point.row
+                and range.start_point.row <= self.end_point.row
+            ) or (
+                range.end_point.row <= self.end_point.row
+                and range.end_point.row >= self.start_point.row
             )
 
         return (

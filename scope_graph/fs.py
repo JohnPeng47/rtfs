@@ -20,6 +20,7 @@ class RepoFs:
     def get_files_content(self) -> Iterator[Tuple[Path, bytes]]:
         # TODO: multithread this
         for file in self.path.rglob(SRC_EXT):
+            print("file: ", file)
             yield file, file.read_bytes()
 
     def match_file(self, ns_path: Path) -> Path:

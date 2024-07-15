@@ -3,13 +3,11 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pathlib import Path
 
+from scope_graph.build_scopes import ScopeGraph
 from scope_graph.scope_resolution.imports import LocalImportStmt
 from scope_graph.codeblocks.namespace import NameSpace
 from scope_graph.fs import RepoFs
 from scope_graph.utils import SysModules, ThirdPartyModules
-
-
-from scope_graph.config import LANGUAGE
 
 
 class ModuleType(str, Enum):
@@ -22,19 +20,37 @@ class ModuleType(str, Enum):
     UNKNOWN = "unknown"
 
 
+@dataclass
+class Import:
+    """
+    This represents a single Import that is the result of joining
+    from_name and names in LocalImportStmt
+    """
+
+    namespace: NameSpace
+    module_type: ModuleType
+    filepath: Path
+    # only for ModuleType.LOCAL
+    import_path: Optional[Path] = None
+    # if this import is defined in a scope
+    def_scope: Optional[int] = None
+
+
 def import_stmt_to_import(
     import_stmt: LocalImportStmt,
     filepath: Path,
+    scope_graph: ScopeGraph,
     fs: RepoFs,
     sys_modules: SysModules,
     third_party_modules: ThirdPartyModules,
-) -> Dict[NameSpace, ModuleType]:
+) -> List[Import]:
     """
     Convert an import statement, which may hold multiple imports
     """
     imports = []
     namespaces = []
 
+    print("FILEPAHT: ", filepath)
     # from foo.bar import baz
     # root_ns = foo.bar
     # name = baz
@@ -60,19 +76,24 @@ def import_stmt_to_import(
         else:
             module_type = ModuleType.UNKNOWN
 
-        imports.append(Import(ns, module_type, filepath, import_path=import_path))
+        # try to match import with scope of def
+        defscope_id = None
+        for scope in scope_graph.scopes():
+            for definition in scope_graph.definitions(scope):
+                def_node = scope_graph.get_node(definition)
+                if def_node.name == ns.child:
+                    defscope_id = scope
+                    print(f"Found import in scope: {ns.root} {defscope_id}")
+                    break
+
+        imports.append(
+            Import(
+                ns,
+                module_type,
+                filepath,
+                import_path=import_path,
+                def_scope=defscope_id,
+            )
+        )
+
     return imports
-
-
-@dataclass
-class Import:
-    """
-    This represents a single Import that is the result of joining
-    from_name and names in LocalImportStmt
-    """
-
-    namespace: NameSpace
-    module_type: ModuleType
-    filepath: Path
-    # only for ModuleType.LOCAL
-    import_path: Optional[Path] = None

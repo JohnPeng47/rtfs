@@ -68,7 +68,6 @@ class ScopeGraph:
                 range=new.range,
                 name=new.name,
                 type=NodeKind.DEFINITION,
-                def_type=new.symbol,
             )
             new_idx = self.add_node(new_def)
             self._graph.add_edge(new_idx, defining_scope, type=EdgeKind.DefToScope)
@@ -79,11 +78,11 @@ class ScopeGraph:
         """
         defining_scope = self.scope_by_range(new.range, self.root_idx)
         if defining_scope is not None:
+            def_type = new.symbol
             new_def = ScopeNode(
                 range=new.range,
                 name=new.name,
                 type=NodeKind.DEFINITION,
-                def_type=new.symbol,
             )
             new_idx = self.add_node(new_def)
 
@@ -102,7 +101,6 @@ class ScopeGraph:
             range=new.range,
             name=new.name,
             type=NodeKind.DEFINITION,
-            def_type=new.symbol,
         )
         new_idx = self.add_node(new_def)
         self._graph.add_edge(new_idx, self.root_idx, type=EdgeKind.DefToScope)
@@ -162,69 +160,75 @@ class ScopeGraph:
             # add an edge back to the originating scope of the reference
             self._graph.add_edge(ref_idx, local_scope_idx, type=EdgeKind.RefToOrigin)
 
-
-    def scopes(self) -> Iterator[ScopeID]:
+    def scopes(self) -> List[ScopeID]:
         """
         Return all scopes in the graph
         """
-        return iter(
-            [
-                u
-                for u, attrs in self._graph.nodes(data=True)
-                if attrs["type"] == NodeKind.SCOPE
-            ]
-        )
+        return [
+            u
+            for u, attrs in self._graph.nodes(data=True)
+            if attrs["type"] == NodeKind.SCOPE
+        ]
 
-    def scopes_by_range(self, range: TextRange, overlap=False) -> Iterator[ScopeID]:
+    def scopes_by_range(self, range: TextRange, overlap=False) -> List[ScopeID]:
         """
         Get all scopes that contain the given range
         """
-        return (
+        return [
             u
             for u, attrs in self._graph.nodes(data=True)
             if attrs["type"] == NodeKind.SCOPE
             and self.get_node(u).range.contains_line(range, overlap=overlap)
-        )
+        ]
 
-    def imports(self, start: int) -> Iterator[int]:
+    def imports(self, start: int) -> List[int]:
         """
         Get all imports in the scope
         """
-        return (
+        return [
             u
             for u, v, attrs in self._graph.in_edges(start, data=True)
             if attrs["type"] == EdgeKind.ImportToScope
-        )
+        ]
 
-    def definitions(self, start: int) -> Iterator[int]:
+    def get_all_imports(self) -> List[ScopeNode]:
+        all_imports = []
+
+        scopes = self.scopes()
+        for scope in scopes:
+            all_imports.extend([self.get_node(i) for i in self.imports(scope)])
+
+        return all_imports
+
+    def definitions(self, start: int) -> List[int]:
         """
         Get all definitions in the scope and child scope
         """
-        return (
+        return [
             u
             for u, v, attrs in self._graph.in_edges(start, data=True)
             if attrs["type"] == EdgeKind.DefToScope
-        )
+        ]
 
-    def references(self, start: int) -> Iterator[int]:
+    def references_by_origin(self, start: int) -> List[int]:
         """
         Get all references in the scope and child scope
         """
-        return (
+        return [
             u
             for u, v, attrs in self._graph.in_edges(start, data=True)
-            if attrs["type"] == EdgeKind.RefToDef
-        )
+            if attrs["type"] == EdgeKind.RefToOrigin
+        ]
 
-    def child_scopes(self, start: ScopeID) -> Iterator[ScopeID]:
+    def child_scopes(self, start: ScopeID) -> List[ScopeID]:
         """
         Get all child scopes of the given scope
         """
-        return (
+        return [
             u
             for u, v, attrs in self._graph.edges(data=True)
             if attrs["type"] == EdgeKind.ScopeToScope and v == start
-        )
+        ]
 
     def parent_scope(self, start: ScopeID) -> Optional[ScopeID]:
         """
@@ -270,7 +274,7 @@ class ScopeGraph:
 
         return id
 
-    def get_node(self, idx: int):
+    def get_node(self, idx: int) -> ScopeNode:
         return ScopeNode(**self._graph.nodes(data=True)[idx])
 
     def to_str(self):
@@ -422,8 +426,6 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
 
     # insert defs
     for def_capture in local_def_captures:
-        # TODO: probably should add this abstraction for
-        # skipping out on symbol namespace finding ...
         range = capture_map[def_capture.index]
         local_def = LocalDef(range, src_bytes, def_capture.symbol)
         match def_capture.scoping:
@@ -443,8 +445,6 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
         # if the symbol is present, is it one of the supported symbols for this language?
         symbol_id = symbol if symbol in namespaces else None
         new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
-
-        print("Inserting ref: ", new_ref.name)
 
         scope_graph.insert_ref(new_ref)
 

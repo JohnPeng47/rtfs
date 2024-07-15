@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from scope_graph.utils import SymbolId, TextRange
+from scope_graph.graph import NodeKind
 
 
 @dataclass
@@ -16,3 +17,11 @@ class LocalDef:
         self.range = range
         self.symbol = symbol
         self.name = buffer[self.range.start_byte : self.range.end_byte].decode("utf-8")
+
+    def to_node(self):
+        return {
+            "name": self.name,
+            "range": self.range.dict(),
+            "type": NodeKind.DEFINITION,
+            "data": {"def_type": self.symbol},
+        }

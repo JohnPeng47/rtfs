@@ -16,7 +16,6 @@ class NodeKind(str, Enum):
 class ScopeNode(BaseModel):
     range: TextRange
     type: NodeKind
-    def_type: Optional[str] = ""
     name: Optional[str] = ""
     data: Optional[Dict] = {}
 

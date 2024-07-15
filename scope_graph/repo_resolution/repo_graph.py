@@ -1,5 +1,6 @@
 from typing import Any, List, Dict
 from pathlib import Path
+from collections import defaultdict
 
 from scope_graph.fs import RepoFs
 from scope_graph.build_scopes import ScopeGraph, build_scope_graph, ScopeID
@@ -13,17 +14,16 @@ from scope_graph.config import LANGUAGE
 # probably not, since we do want struct to hold repo level info
 class RepoGraph:
     """
-    Constructs a graph of the entire repository
+    Constructs a graph of the entire repository, including all exports / imports
     """
 
     def __init__(self, path: Path):
         fs = RepoFs(path)
         self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
-
-        # construct file level "connection sites" for building eges
         self.imports: Dict[Path, List[Import]] = self.construct_imports(
             self.scopes_map, fs
         )
+        self.exports = self.construct_exports(self.scopes_map)
 
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
@@ -56,42 +56,48 @@ class RepoGraph:
         # lists for checking if python module is system or third party
         sys_modules_list = SysModules(LANGUAGE)
         third_party_modules_list = ThirdPartyModules(LANGUAGE)
+        import_map = defaultdict(list)
 
-        import_map = {}
-
-        for file, scope_graph in scopes.items():
-            imports = self.get_imports(
-                scope_graph, file, fs, sys_modules_list, third_party_modules_list
-            )
-            import_map[file] = imports
-
-        return import_map
-
-    def get_imports(
-        self,
-        g: ScopeGraph,
-        file: Path,
-        fs: RepoFs,
-        sys_modules: SysModules,
-        third_party_modules: ThirdPartyModules,
-    ) -> List[Import]:
-        """
-        Get all imports from a ScopeGraph
-        """
-        imports = []
-
-        for scope in g.scopes():
-            for imp in g.imports(scope):
-                imp_node = g.get_node(imp)
+        for file, g in scopes.items():
+            imports = []
+            for imp_node in g.get_all_imports():
                 imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
                 imp_blocks = import_stmt_to_import(
                     import_stmt=imp_stmt,
+                    scope_graph=g,
                     filepath=file,
                     fs=fs,
-                    sys_modules=sys_modules,
-                    third_party_modules=third_party_modules,
+                    sys_modules=sys_modules_list,
+                    third_party_modules=third_party_modules_list,
                 )
-
                 imports.extend(imp_blocks)
 
-        return imports
+            import_map[file].extend(imports)
+
+        return import_map
+
+    # NOTE: this would need to be handled differently for other langs
+    def construct_exports(
+        self, scopes: Dict[Path, ScopeGraph]
+    ) -> Dict[Path, List[Import]]:
+        """
+        Constructs a map from file to its exports (unreferenced definitions)
+        """
+        exports_map = defaultdict(list)
+
+        for file, g in scopes.items():
+            # have to do this because class/func defs are tied to the same scope
+            # they open, so they are child of root instead of being defined at root
+            outer_scopes = [g.root_idx] + [s for s in g.child_scopes(g.root_idx)]
+            for scope in outer_scopes:
+                for defn in g.definitions(scope):
+                    def_node = g.get_node(defn)
+                    # dont want to pick up non class/func defs in child scopes
+                    # if scope != g.root_idx and (
+                    #     def_node.data["def_type"] == "class"
+                    #     or def_node.data["def_type"] == "function"
+                    # ):
+                    #     print("File export: ", file, "DEF_NODE: ", def_node.name)
+                    #     exports_map[file] = def_node.name
+
+        return exports_map

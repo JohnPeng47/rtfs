@@ -15,9 +15,10 @@
  (with_statement)
  (for_statement)
 
- (function_definition)
- (class_definition)
+;; (function_definition)
+;; (class_definition)
  ] @local.scope
+
 
 
 ;; defs
@@ -127,6 +128,7 @@
       (identifier) @local.import.name)+
 ) @local.import.statement
 
+;;;; TODO: alias and wildcard imports not supported
 ;;;; aliased (alias first)
 ;;;;    from module import name1, name2
 ;;;;    from module import (
@@ -148,12 +150,6 @@
 ;;;;  module_name: (dotted_name) @local.import.module
 ;;;;  name: (wildcard_import) @local.import.wildcard)
 ;;;;
-;;;;;; from __future__ import name
-;;;;(future_import_statement
-;;;;  module_name: (dotted_name) @local.import.module
-;;;;  name: (aliased_import
-;;;;    name: (identifier) @local.import.name
-;;;;    alias: (identifier)? @local.import.alias)?)
 
 ;; class A
 (class_definition
