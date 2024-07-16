@@ -257,7 +257,7 @@ class ScopeGraph:
 
         return None
 
-    def child_scope_stack(self, start: ScopeID):
+    def child_scope_stack(self, start: ScopeID) -> List[ScopeID]:
         stack = self.child_scopes(start)
 
         for child in self.child_scopes(start):

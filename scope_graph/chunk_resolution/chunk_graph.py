@@ -33,7 +33,7 @@ class ChunkGraph:
             resolved, unresolved = self.unresolved_refs(
                 Path(metadata.file_path), chunk_scopes
             )
-            # print(f"Chunk: {chunk.get_content()}")
+            print(f"Chunk: {chunk.get_content()}")
             print(f"Chunk scopes: {chunk_scopes}")
             print(f"Resolved: {resolved}")
             print(f"Unresolved: {unresolved}")
@@ -63,9 +63,21 @@ class ChunkGraph:
             end_point=(end_line, 0),
         )
         scope_graph = self.scopes_map[file_path]
-        scopes = scope_graph.scopes_by_range(range, overlap=True)
 
-        return scopes
+        # alternative is to just return scopes, but this way we can
+        # get definitions at the most granular child scope level
+        chunk_scopes = set()
+        scopes = scope_graph.scopes_by_range(range, overlap=True)
+        for scope in scopes:
+            child_scopes = scope_graph.child_scope_stack(scope)
+            for child_scope in child_scopes:
+                if range.contains_line(
+                    scope_graph.get_node(child_scope).range, overlap=True
+                ):
+                    chunk_scopes.add(child_scope)
+
+        return list(chunk_scopes)
+        # return scopes
 
     def get_import_refs(
         self, unresolved_refs: set[str], file_path: Path, scopes: List[ScopeID]

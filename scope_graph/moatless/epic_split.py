@@ -236,6 +236,7 @@ class EpicSplitter(NodeParser):
 
         return self._chunk_block(codeblock, file_path)
 
+    # TODO: attempt rewrite
     # get start and end line from codeblock
     def _chunk_block(
         self, codeblock: CodeBlock, file_path: Optional[str] = None
