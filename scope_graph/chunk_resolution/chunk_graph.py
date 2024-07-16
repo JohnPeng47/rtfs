@@ -18,10 +18,10 @@ class ChunkGraph:
         self._repo_graph = RepoGraph(repo_path)
 
         self.scopes_map = self._repo_graph.scopes_map
-        self.imports_map = self._repo_graph.construct_imports(self.scopes_map, self.fs)
         self.chunks = chunks
         self.chunk_scope_map = {}
 
+        # TODO: rethink this whole block of code, should be just constructing import edges
         for chunk in chunks:
             metadata = ChunkMetadata(**chunk.metadata)
             print(f"________________ NODE ________________")
@@ -33,7 +33,7 @@ class ChunkGraph:
             resolved, unresolved = self.unresolved_refs(
                 Path(metadata.file_path), chunk_scopes
             )
-            print(f"Chunk: {chunk.get_content()}")
+            # print(f"Chunk: {chunk.get_content()}")
             print(f"Chunk scopes: {chunk_scopes}")
             print(f"Resolved: {resolved}")
             print(f"Unresolved: {unresolved}")
@@ -64,6 +64,7 @@ class ChunkGraph:
         )
         scope_graph = self.scopes_map[file_path]
 
+        # TODO: note that we have potentially overlapping parent/child scopes here
         # alternative is to just return scopes, but this way we can
         # get definitions at the most granular child scope level
         chunk_scopes = set()

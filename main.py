@@ -6,13 +6,21 @@ from pathlib import Path
 
 ### Failing tests
 # Dotted assignment/ref
-test = """
-h.a = 1
-h.a = h.b
+# test = """
+# h.a = 1
+# h.a = h.b
 
-def func1():
-    a = 1
-    b = 2
+# def func1():
+#     a = 1
+#     b = 2
+# """
+
+test = """
+from src.b import main2
+
+
+def main():
+    pass
 """
 
 

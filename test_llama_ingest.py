@@ -60,4 +60,4 @@ def ingest(repo_path: str):
     chunk_graph = ChunkGraph(Path(repo_path), prepared_nodes)
 
 
-ingest("tests/repos/test-import-ref")
+ingest("tests/repos/small_repo")

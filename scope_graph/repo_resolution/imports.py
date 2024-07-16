@@ -33,7 +33,7 @@ class Import:
     # only for ModuleType.LOCAL
     import_path: Optional[Path] = None
     # if this import is defined in a scope
-    def_scope: Optional[int] = None
+    ref_scope: Optional[int] = None
 
 
 def import_stmt_to_import(
@@ -77,13 +77,13 @@ def import_stmt_to_import(
             module_type = ModuleType.UNKNOWN
 
         # try to match import with scope of def
-        defscope_id = None
+        refscope_id = None
         for scope in scope_graph.scopes():
-            for definition in scope_graph.definitions(scope):
-                def_node = scope_graph.get_node(definition)
-                if def_node.name == ns.child:
-                    defscope_id = scope
-                    print(f"Found import in scope: {ns.root} {defscope_id}")
+            for definition in scope_graph.references_by_origin(scope):
+                ref_node = scope_graph.get_node(definition)
+                print(f"REF_NODE FOUND IMPORT: {ref_node.name} {ns.child}")
+                if ref_node.name == ns.child:
+                    refscope_id = scope
                     break
 
         imports.append(
@@ -92,7 +92,7 @@ def import_stmt_to_import(
                 module_type,
                 filepath,
                 import_path=import_path,
-                def_scope=defscope_id,
+                ref_scope=refscope_id,
             )
         )
 

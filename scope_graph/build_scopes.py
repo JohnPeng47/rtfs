@@ -160,6 +160,7 @@ class ScopeGraph:
             # add an edge back to the originating scope of the reference
             self._graph.add_edge(ref_idx, local_scope_idx, type=EdgeKind.RefToOrigin)
 
+    # TODO: maybe we want to think about another class for sticking all these utility access methods
     def scopes(self) -> List[ScopeID]:
         """
         Return all scopes in the graph
@@ -209,6 +210,15 @@ class ScopeGraph:
             for u, v, attrs in self._graph.in_edges(start, data=True)
             if attrs["type"] == EdgeKind.DefToScope
         ]
+
+    def get_all_definitions(self) -> List[ScopeNode]:
+        all_defs = []
+
+        scopes = self.scopes()
+        for scope in scopes:
+            all_defs.extend([self.get_node(i) for i in self.definitions(scope)])
+
+        return all_defs
 
     def references_by_origin(self, start: int) -> List[int]:
         """
