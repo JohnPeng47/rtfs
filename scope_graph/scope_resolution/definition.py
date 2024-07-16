@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from scope_graph.utils import SymbolId, TextRange
-from scope_graph.graph import NodeKind
+from scope_graph.utils import TextRange
+
+from .graph_types import NodeKind
 
 
 @dataclass

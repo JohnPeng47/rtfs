@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from typing import Optional, Iterator, NewType
+from typing import Optional, Iterator
 from networkx import DiGraph
+from enum import Enum
 
-from scope_graph.graph import NodeKind, ScopeNode, EdgeKind
 from scope_graph.utils import TextRange
+
+from .graph_types import EdgeKind
 
 
 @dataclass
@@ -12,6 +14,12 @@ class LocalScope:
 
     def __init__(self, range: TextRange):
         self.range = range
+
+
+class Scoping(str, Enum):
+    GLOBAL = "global"
+    HOISTED = "hoist"
+    LOCAL = "local"
 
 
 class ScopeStack(Iterator):

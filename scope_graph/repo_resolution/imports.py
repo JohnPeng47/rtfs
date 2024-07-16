@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pathlib import Path
 
-from scope_graph.build_scopes import ScopeGraph
+from scope_graph.scope_resolution.graph import ScopeGraph
 from scope_graph.scope_resolution.imports import LocalImportStmt
 from scope_graph.repo_resolution.namespace import NameSpace
 from scope_graph.fs import RepoFs
@@ -85,9 +85,8 @@ def import_stmt_to_import(
         for scope in scope_graph.scopes():
             for definition in scope_graph.references_by_origin(scope):
                 ref_node = scope_graph.get_node(definition)
-
-                logger.info(f"REF_NODE FOUND IMPORT: {ref_node.name} {ns.child}")
                 if ref_node.name == ns.child:
+                    logger.info(f"REF_NODE FOUND IMPORT: {ref_node.name} {ns.child}")
                     ref_scopeids.append(scope)
 
         imports.append(

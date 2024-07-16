@@ -3,7 +3,7 @@ from pathlib import Path
 from llama_index.core.schema import BaseNode
 from typing import List, Tuple
 
-from scope_graph.build_scopes import ScopeGraph, ScopeID
+from scope_graph.scope_resolution.graph import ScopeGraph, ScopeID
 from scope_graph.repo_resolution.repo_graph import RepoGraph
 from scope_graph.utils import TextRange
 from scope_graph.fs import RepoFs
@@ -28,7 +28,7 @@ class ChunkGraph:
         # TODO: rethink this whole block of code, should be just constructing import edges
         for chunk in chunks:
             metadata = ChunkMetadata(**chunk.metadata)
-            logger.info(f"________________ NODE ________________")
+            logger.info(f"________________ {metadata.file_name} ________________")
             chunk_scopes = self.get_scopes(
                 Path(metadata.file_path),
                 metadata.start_line,
@@ -37,8 +37,8 @@ class ChunkGraph:
             resolved, unresolved = self.unresolved_refs(
                 Path(metadata.file_path), chunk_scopes
             )
-            # logger.info(f"Chunk: {chunk.get_content()}")
-            logger.debug(f"Chunk scopes: {chunk_scopes}")
+            logger.debug(f"Chunk: {chunk.get_content()}")
+            logger.info(f"Chunk scopes: {chunk_scopes}")
             logger.info(f"Resolved: {resolved}")
             logger.info(f"Unresolved: {unresolved}")
 

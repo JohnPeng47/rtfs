@@ -3,7 +3,8 @@ from pathlib import Path
 from collections import defaultdict
 
 from scope_graph.fs import RepoFs
-from scope_graph.build_scopes import ScopeGraph, build_scope_graph, ScopeID
+from scope_graph.scope_resolution.graph import ScopeGraph, ScopeID
+from scope_graph.build_scopes import build_scope_graph
 from scope_graph.scope_resolution import LocalImportStmt
 from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
 from scope_graph.repo_resolution.imports import Import, import_stmt_to_import
@@ -14,16 +15,20 @@ from scope_graph.config import LANGUAGE
 # probably not, since we do want struct to hold repo level info
 class RepoGraph:
     """
-    Constructs a graph of the entire repository, including all exports / imports
+    Constructs a graph of relation between files in a repo
     """
 
     def __init__(self, path: Path):
         fs = RepoFs(path)
         self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
-        self.imports: Dict[Path, List[Import]] = self.construct_imports(
-            self.scopes_map, fs
-        )
-        self.exports = self.construct_exports(self.scopes_map)
+        self.imports: Dict[Path, List[Import]] = {}
+        self.exports: Dict[Path, List[Import]] = {}
+
+        for path, g in self.scopes_map.items():
+            self.imports: Dict[Path, List[Import]] = self.construct_import(
+                self.scopes_map, fs
+            )
+            self.exports = self.construct_exports(self.scopes_map)
 
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
@@ -47,8 +52,8 @@ class RepoGraph:
 
     # ultimately the output should be 3-tuple
     # (import_stmt, path, import_type)
-    def construct_imports(
-        self, scopes: Dict[Path, ScopeGraph], fs: RepoFs
+    def construct_import(
+        self, file: Path, g: ScopeGraph, fs: RepoFs
     ) -> Dict[Path, List[Import]]:
         """
         Constructs a map from file to its imports
@@ -58,21 +63,20 @@ class RepoGraph:
         third_party_modules_list = ThirdPartyModules(LANGUAGE)
         import_map = defaultdict(list)
 
-        for file, g in scopes.items():
-            imports = []
-            for imp_node in g.get_all_imports():
-                imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
-                imp_blocks = import_stmt_to_import(
-                    import_stmt=imp_stmt,
-                    scope_graph=g,
-                    filepath=file,
-                    fs=fs,
-                    sys_modules=sys_modules_list,
-                    third_party_modules=third_party_modules_list,
-                )
-                imports.extend(imp_blocks)
+        imports = []
+        for imp_node in g.get_all_imports():
+            imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
+            imp_blocks = import_stmt_to_import(
+                import_stmt=imp_stmt,
+                scope_graph=g,
+                filepath=file,
+                fs=fs,
+                sys_modules=sys_modules_list,
+                third_party_modules=third_party_modules_list,
+            )
+            imports.extend(imp_blocks)
 
-            import_map[file].extend(imports)
+        import_map[file].extend(imports)
 
         return import_map
 
