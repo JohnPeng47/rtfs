@@ -1,8 +1,12 @@
 from pathlib import Path
 from typing import Iterator, Tuple
-from scope_graph.config import FILE_GLOB_ENDING, LANGUAGE
 
+from scope_graph.config import FILE_GLOB_ENDING, LANGUAGE
 from scope_graph.repo_resolution.namespace import NameSpace
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 SRC_EXT = FILE_GLOB_ENDING[LANGUAGE]
 
@@ -20,7 +24,7 @@ class RepoFs:
     def get_files_content(self) -> Iterator[Tuple[Path, bytes]]:
         # TODO: multithread this
         for file in self.path.rglob(SRC_EXT):
-            print("file: ", file)
+            logger.debug(f"file: {file}")
             yield file, file.read_bytes()
 
     def match_file(self, ns_path: Path) -> Path:

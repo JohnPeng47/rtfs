@@ -9,6 +9,10 @@ from scope_graph.repo_resolution.namespace import NameSpace
 from scope_graph.fs import RepoFs
 from scope_graph.utils import SysModules, ThirdPartyModules
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class ModuleType(str, Enum):
     # a local package
@@ -50,7 +54,7 @@ def import_stmt_to_import(
     imports = []
     namespaces = []
 
-    print("FILEPAHT: ", filepath)
+    logger.info(f"Finding imports for file: {filepath}")
     # from foo.bar import baz
     # root_ns = foo.bar
     # name = baz
@@ -81,7 +85,8 @@ def import_stmt_to_import(
         for scope in scope_graph.scopes():
             for definition in scope_graph.references_by_origin(scope):
                 ref_node = scope_graph.get_node(definition)
-                print(f"REF_NODE FOUND IMPORT: {ref_node.name} {ns.child}")
+
+                logger.info(f"REF_NODE FOUND IMPORT: {ref_node.name} {ns.child}")
                 if ref_node.name == ns.child:
                     ref_scopeids.append(scope)
 

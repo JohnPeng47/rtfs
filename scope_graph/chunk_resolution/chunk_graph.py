@@ -10,6 +10,10 @@ from scope_graph.fs import RepoFs
 
 from .types import ChunkMetadata
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class ChunkGraph:
     def __init__(self, repo_path: Path, chunks: List[BaseNode]):
@@ -24,7 +28,7 @@ class ChunkGraph:
         # TODO: rethink this whole block of code, should be just constructing import edges
         for chunk in chunks:
             metadata = ChunkMetadata(**chunk.metadata)
-            print(f"________________ NODE ________________")
+            logger.info(f"________________ NODE ________________")
             chunk_scopes = self.get_scopes(
                 Path(metadata.file_path),
                 metadata.start_line,
@@ -33,10 +37,10 @@ class ChunkGraph:
             resolved, unresolved = self.unresolved_refs(
                 Path(metadata.file_path), chunk_scopes
             )
-            # print(f"Chunk: {chunk.get_content()}")
-            print(f"Chunk scopes: {chunk_scopes}")
-            print(f"Resolved: {resolved}")
-            print(f"Unresolved: {unresolved}")
+            # logger.info(f"Chunk: {chunk.get_content()}")
+            logger.debug(f"Chunk scopes: {chunk_scopes}")
+            logger.info(f"Resolved: {resolved}")
+            logger.info(f"Unresolved: {unresolved}")
 
             # try to resolve unresolved refs. every ref here
             # should lead to an edge to either:
@@ -45,7 +49,7 @@ class ChunkGraph:
             imported_refs = self.get_import_refs(
                 unresolved, Path(metadata.file_path), chunk_scopes
             )
-            print(f"Imported refs: {imported_refs}")
+            logger.info(f"Imported refs: {imported_refs}")
 
         # TODO: construct graph to build graph
 

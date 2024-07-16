@@ -60,4 +60,27 @@ def ingest(repo_path: str):
     chunk_graph = ChunkGraph(Path(repo_path), prepared_nodes)
 
 
-ingest("tests/repos/small_repo")
+if __name__ == "__main__":
+    import argparse
+    import logging
+
+    log_level = logging.INFO
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d",
+        "--debug",
+        help="Print lots of debugging statements",
+        action="store_const",
+        dest="loglevel",
+        const=logging.DEBUG,
+    )
+
+    args = parser.parse_args()
+    if args.loglevel:
+        log_level = args.loglevel
+
+    logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
+    print(logging.getLogger().getEffectiveLevel())
+
+    ingest("tests/repos/small_repo")
