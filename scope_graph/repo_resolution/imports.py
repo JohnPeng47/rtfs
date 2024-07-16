@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from scope_graph.scope_resolution.graph import ScopeGraph
@@ -37,13 +37,15 @@ class Import:
     # only for ModuleType.LOCAL
     import_path: Optional[Path] = None
     # if this import is defined in a scope
-    ref_scopes: Optional[int] = None
+    ref_scopes: Optional[int] = field(default_factory=list)
+
+    def __str__(self):
+        return f"{self.namespace} {self.module_type} {self.import_path}"
 
 
 def import_stmt_to_import(
     import_stmt: LocalImportStmt,
     filepath: Path,
-    scope_graph: ScopeGraph,
     fs: RepoFs,
     sys_modules: SysModules,
     third_party_modules: ThirdPartyModules,
@@ -80,23 +82,8 @@ def import_stmt_to_import(
         else:
             module_type = ModuleType.UNKNOWN
 
-        # try to match import with scope of def
-        ref_scopeids = []
-        for scope in scope_graph.scopes():
-            for definition in scope_graph.references_by_origin(scope):
-                ref_node = scope_graph.get_node(definition)
-                if ref_node.name == ns.child:
-                    logger.info(f"REF_NODE FOUND IMPORT: {ref_node.name} {ns.child}")
-                    ref_scopeids.append(scope)
+        logger.info(f"Import: {ns} {module_type} {import_path}")
 
-        imports.append(
-            Import(
-                ns,
-                module_type,
-                filepath,
-                import_path=import_path,
-                ref_scopes=ref_scopeids,
-            )
-        )
+        imports.append(Import(ns, module_type, filepath, import_path=import_path))
 
     return imports

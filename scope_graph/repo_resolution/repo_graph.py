@@ -1,6 +1,7 @@
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Tuple
 from pathlib import Path
 from collections import defaultdict
+from networkx import DiGraph
 
 from scope_graph.fs import RepoFs
 from scope_graph.scope_resolution.graph import ScopeGraph, ScopeID
@@ -9,6 +10,8 @@ from scope_graph.scope_resolution import LocalImportStmt
 from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
 from scope_graph.repo_resolution.imports import Import, import_stmt_to_import
 from scope_graph.config import LANGUAGE
+
+from .graph_type import RepoNode
 
 
 # rename to import graph?
@@ -20,21 +23,36 @@ class RepoGraph:
 
     def __init__(self, path: Path):
         fs = RepoFs(path)
-        self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
-        self.imports: Dict[Path, List[Import]] = {}
-        self.exports: Dict[Path, List[Import]] = {}
 
+        self._graph = DiGraph()
+
+        self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
+
+        self._imports: List[Tuple[Path, List[Import]]] = []
+        self._exports: List[Tuple[Path, List[Import]]] = []
+
+        # construct imports and exports with defs
         for path, g in self.scopes_map.items():
-            self.imports: Dict[Path, List[Import]] = self.construct_import(
-                self.scopes_map, fs
-            )
-            self.exports = self.construct_exports(self.scopes_map)
+            self._imports.append((path, self.construct_import(g, path, fs)))
+            # exports.append(self.construct_exports(self.scopes_map))
+
+        # construct refs for imports
+        # ref_scopeids = []
+        # for scope in scope_graph.scopes():
+        #     for definition in scope_graph.references_by_origin(scope):
+        #         ref_node = scope_graph.get_node(definition)
+        #         if ref_node.name == ns.child:
+        #             logger.info(f"REF_NODE FOUND IMPORT: {ref_node.name} {ns.child}")
+        #             ref_scopeids.append(scope)
 
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
 
         # map the chunks from Moatless
         # self.scope_chunk_map: Dict[ScopeList, Chunk]
+
+    def create_node(self, node: RepoNode):
+        self._graph.add_node(**node.dict())
 
     # TODO: add some sort of hierarchal structure to the scopes?
     def construct_scopes(self, fs: RepoFs) -> Dict[Path, ScopeGraph]:
@@ -53,7 +71,7 @@ class RepoGraph:
     # ultimately the output should be 3-tuple
     # (import_stmt, path, import_type)
     def construct_import(
-        self, file: Path, g: ScopeGraph, fs: RepoFs
+        self, g: ScopeGraph, file: Path, fs: RepoFs
     ) -> Dict[Path, List[Import]]:
         """
         Constructs a map from file to its imports
@@ -61,14 +79,12 @@ class RepoGraph:
         # lists for checking if python module is system or third party
         sys_modules_list = SysModules(LANGUAGE)
         third_party_modules_list = ThirdPartyModules(LANGUAGE)
-        import_map = defaultdict(list)
 
         imports = []
         for imp_node in g.get_all_imports():
             imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
             imp_blocks = import_stmt_to_import(
                 import_stmt=imp_stmt,
-                scope_graph=g,
                 filepath=file,
                 fs=fs,
                 sys_modules=sys_modules_list,
@@ -76,9 +92,7 @@ class RepoGraph:
             )
             imports.extend(imp_blocks)
 
-        import_map[file].extend(imports)
-
-        return import_map
+        return imports
 
     # NOTE: this would need to be handled differently for other langs
     def construct_exports(

@@ -83,4 +83,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
     print(logging.getLogger().getEffectiveLevel())
 
-    ingest("tests/repos/test-import-ref")
+    # ingest("tests/repos/test-import-ref")
+    ingest("tests/repos/small_repo")

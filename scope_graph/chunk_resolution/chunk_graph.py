@@ -21,35 +21,35 @@ class ChunkGraph:
         self._graph = DiGraph()
         self._repo_graph = RepoGraph(repo_path)
 
-        self.scopes_map = self._repo_graph.scopes_map
-        self.chunks = chunks
-        self.chunk_scope_map = {}
+        # self.scopes_map = self._repo_graph.scopes_map
+        # self.chunks = chunks
+        # self.chunk_scope_map = {}
 
-        # TODO: rethink this whole block of code, should be just constructing import edges
-        for chunk in chunks:
-            metadata = ChunkMetadata(**chunk.metadata)
-            logger.info(f"________________ {metadata.file_name} ________________")
-            chunk_scopes = self.get_scopes(
-                Path(metadata.file_path),
-                metadata.start_line,
-                metadata.end_line,
-            )
-            resolved, unresolved = self.unresolved_refs(
-                Path(metadata.file_path), chunk_scopes
-            )
-            logger.debug(f"Chunk: {chunk.get_content()}")
-            logger.info(f"Chunk scopes: {chunk_scopes}")
-            logger.info(f"Resolved: {resolved}")
-            logger.info(f"Unresolved: {unresolved}")
+        # # TODO: rethink this whole block of code, should be just constructing import edges
+        # for chunk in chunks:
+        #     metadata = ChunkMetadata(**chunk.metadata)
+        #     logger.info(f"________________ {metadata.file_name} ________________")
+        #     chunk_scopes = self.get_scopes(
+        #         Path(metadata.file_path),
+        #         metadata.start_line,
+        #         metadata.end_line,
+        #     )
+        #     resolved, unresolved = self.unresolved_refs(
+        #         Path(metadata.file_path), chunk_scopes
+        #     )
+        #     logger.debug(f"Chunk: {chunk.get_content()}")
+        #     logger.info(f"Chunk scopes: {chunk_scopes}")
+        #     logger.info(f"Resolved: {resolved}")
+        #     logger.info(f"Unresolved: {unresolved}")
 
-            # try to resolve unresolved refs. every ref here
-            # should lead to an edge to either:
-            # - same file definition
-            # - file-level import
-            imported_refs = self.get_import_refs(
-                unresolved, Path(metadata.file_path), chunk_scopes
-            )
-            logger.info(f"Imported refs: {imported_refs}")
+        #     # try to resolve unresolved refs. every ref here
+        #     # should lead to an edge to either:
+        #     # - same file definition
+        #     # - file-level import
+        #     imported_refs = self.get_import_refs(
+        #         unresolved, Path(metadata.file_path), chunk_scopes
+        #     )
+        #     logger.info(f"Imported refs: {imported_refs}")
 
         # TODO: construct graph to build graph
 
