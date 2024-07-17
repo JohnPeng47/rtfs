@@ -46,6 +46,7 @@ class Import:
 def import_stmt_to_import(
     import_stmt: LocalImportStmt,
     filepath: Path,
+    g: ScopeGraph,
     fs: RepoFs,
     sys_modules: SysModules,
     third_party_modules: ThirdPartyModules,
@@ -84,6 +85,24 @@ def import_stmt_to_import(
 
         logger.info(f"Import: {ns} {module_type} {import_path}")
 
-        imports.append(Import(ns, module_type, filepath, import_path=import_path))
+        # resolve refs to this import
+        ref_scopes = []
+        for scope in g.scopes():
+            for ref in g.references_by_origin(scope):
+                ref_node = g.get_node(ref)
+                if ref_node.name == ns.child:
+                    ref_scopes.append(scope)
+
+        print("Ref scopes: ", ref_scopes)
+
+        imports.append(
+            Import(
+                ns,
+                module_type,
+                filepath,
+                import_path=import_path,
+                ref_scopes=ref_scopes,
+            )
+        )
 
     return imports

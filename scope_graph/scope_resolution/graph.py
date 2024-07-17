@@ -39,7 +39,15 @@ class ScopeGraph:
         """
         parent_scope = self.scope_by_range(new.range, self.root_idx)
         if parent_scope is not None:
-            new_node = ScopeNode(**new.to_node())
+            new_node = ScopeNode(
+                range=new.range,
+                type=NodeKind.IMPORT,
+                data={
+                    "from_name": new.from_name,
+                    "aliases": new.aliases,
+                    "names": new.names,
+                },
+            )
 
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ImportToScope)
@@ -54,6 +62,7 @@ class ScopeGraph:
                 range=new.range,
                 name=new.name,
                 type=NodeKind.DEFINITION,
+                data={"def_type": new.symbol},
             )
             new_idx = self.add_node(new_def)
             self._graph.add_edge(new_idx, defining_scope, type=EdgeKind.DefToScope)

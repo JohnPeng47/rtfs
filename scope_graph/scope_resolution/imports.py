@@ -30,27 +30,13 @@ class LocalImportStmt:
         self,
         range: TextRange,
         names: List[str],
-        from_name: List[str] = "",
+        from_name: Optional[str] = "",
         aliases: Optional[List[str]] = [],
     ):
         self.range = range
+        self.names = names
         self.from_name = from_name
         self.aliases = aliases
-        self.names = names
-
-    # TODO: these are the serialization methods to convert to ScopeNode
-    def to_node(self):
-        json_node = {
-            "range": self.range.dict(),
-            "type": NodeKind.IMPORT,
-            "data": {
-                "from_name": self.from_name,
-                "aliases": self.aliases,
-                "names": self.names,
-            },
-        }
-        # print("JSON_NODE: ", json_node)
-        return json_node
 
     # Technically, this is the only python specific method
     def __str__(self):
