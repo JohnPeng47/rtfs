@@ -35,8 +35,6 @@ class RepoGraph:
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
 
-        # construct exports
-
         # construct imports
         for path, g in self.scopes_map.items():
             self._imports[path] = self.construct_import(g, path, fs)
@@ -51,13 +49,24 @@ class RepoGraph:
                     ):
                         if imp.namespace.child == name:
                             for ref_scope in imp.ref_scopes:
-                                print(f"Adding edge from {ref_scope} to {def_scope}")
+                                # create nodes and edges
+                                ref_node = self.get_node(path, ref_scope)
+                                if not ref_node:
+                                    ref_node = self.create_node(path, ref_scope)
+
+                                imp_node = self.get_node(local_path, def_scope)
+                                if not imp_node:
+                                    imp_node = self.create_node(local_path, def_scope)
+
                                 self._graph.add_edge(
-                                    ref_scope, def_scope, kind=EdgeKind.ImportToExport
+                                    ref_node, imp_node, kind=EdgeKind.ImportToExport
                                 )
 
+    def get_node(self, file: Path, scope_id: ScopeID):
+        return self._graph.nodes.get(RepoNode(str(file), scope_id), None)
+
     def create_node(self, file: Path, scope_id: ScopeID):
-        node = RepoNode(file, scope_id)
+        node = RepoNode(str(file), scope_id, name=file.name)
         self._graph.add_node(node)
 
         return node
