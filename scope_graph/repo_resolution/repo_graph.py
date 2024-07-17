@@ -1,6 +1,5 @@
-from typing import Any, List, Dict, Tuple
+from typing import Any, List, Dict, Tuple, NewType
 from pathlib import Path
-from collections import defaultdict
 from networkx import DiGraph
 
 from scope_graph.fs import RepoFs
@@ -17,6 +16,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+RepoNodeID = NewType("RepoNodeID", str)
+
+
+def repo_node_id(file: Path, scope_id: ScopeID):
+    return "".join([str(file), "::", str(scope_id)])
+
 
 # rename to import graph?
 # probably not, since we do want struct to hold repo level info
@@ -29,7 +34,7 @@ class RepoGraph:
         fs = RepoFs(path)
 
         self._graph = DiGraph()
-        self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
+        self.scopes_map: Dict[Path, ScopeGraph] = self._construct_scopes(fs)
         self._imports: Dict[Path, List[Import]] = {}
 
         # parse calls and parameters here
@@ -37,45 +42,59 @@ class RepoGraph:
 
         # construct imports
         for path, g in self.scopes_map.items():
-            self._imports[path] = self.construct_import(g, path, fs)
+            self._imports[path] = self._construct_import(g, path, fs)
 
         # map import ref to export scope
         for path, imports in self._imports.items():
             for imp in filter(lambda i: i.module_type == ModuleType.LOCAL, imports):
                 local_path = fs.match_file(imp.namespace.to_path())
                 if local_path:
-                    for name, def_scope in self.get_exports(
+                    for name, def_scope in self._get_exports(
                         self.scopes_map[local_path], local_path
                     ):
                         if imp.namespace.child == name:
                             for ref_scope in imp.ref_scopes:
                                 # create nodes and edges
-                                ref_node = self.get_node(path, ref_scope)
+                                ref_node_id = repo_node_id(path, ref_scope)
+                                ref_node = self.get_node(ref_node_id)
                                 if not ref_node:
-                                    ref_node = self.create_node(path, ref_scope)
+                                    self.create_node(path, ref_scope)
 
-                                imp_node = self.get_node(local_path, def_scope)
+                                imp_node_id = repo_node_id(local_path, def_scope)
+                                imp_node = self.get_node(imp_node_id)
                                 if not imp_node:
-                                    imp_node = self.create_node(local_path, def_scope)
+                                    self.create_node(local_path, def_scope)
 
                                 self._graph.add_edge(
-                                    ref_node, imp_node, kind=EdgeKind.ImportToExport
+                                    ref_node_id,
+                                    imp_node_id,
+                                    kind=EdgeKind.ImportToExport,
                                 )
 
-    def get_node(self, file: Path, scope_id: ScopeID):
-        return self._graph.nodes.get(RepoNode(str(file), scope_id), None)
+    def get_node(self, node_id: RepoNodeID) -> RepoNode:
+        node = self._graph.nodes.get(node_id, None)
+        if node:
+            return RepoNode(id=node_id, name=node["name"])
+
+        return None
 
     def create_node(self, file: Path, scope_id: ScopeID):
-        node = RepoNode(str(file), scope_id, name=file.name)
-        self._graph.add_node(node)
+        node_id = repo_node_id(str(file), scope_id)
+        node = RepoNode(id=node_id, name=file.name)
 
+        self._graph.add_node(node.id, name=node.name)
         return node
 
-    # def get_node(self, file: Path, scope_id: ScopeID):
-    #     return self._graph.nodes[RepoNode(file, scope_id)]
+    def get_imports(self, file: Path, scope_id: ScopeID) -> List[RepoNodeID]:
+        node = self.get_node(file, scope_id)
+        return [
+            u
+            for _, u, attrs in self._graph.out_edges(node)
+            if attrs["kind"] == EdgeKind.ImportToExport
+        ]
 
     # TODO: add some sort of hierarchal structure to the scopes?
-    def construct_scopes(self, fs: RepoFs) -> Dict[Path, ScopeGraph]:
+    def _construct_scopes(self, fs: RepoFs) -> Dict[Path, ScopeGraph]:
         """
         Returns all the scopes associated with the files in the directory
         """
@@ -90,7 +109,7 @@ class RepoGraph:
 
     # ultimately the output should be 3-tuple
     # (import_stmt, path, import_type)
-    def construct_import(
+    def _construct_import(
         self, g: ScopeGraph, file: Path, fs: RepoFs
     ) -> Dict[Path, List[Import]]:
         """
@@ -116,7 +135,7 @@ class RepoGraph:
         return imports
 
     # NOTE: this would need to be handled differently for other langs
-    def get_exports(self, g: ScopeGraph, file: Path) -> List[Tuple[str, ScopeID]]:
+    def _get_exports(self, g: ScopeGraph, file: Path) -> List[Tuple[str, ScopeID]]:
         """
         Constructs a map from file to its exports (unreferenced definitions)
         """
@@ -137,3 +156,16 @@ class RepoGraph:
                     exports.append((def_node.name, scope))
 
         return exports
+
+    # def _reverse_node_id(self, node_id: RepoNodeID) -> Tuple[Path, ScopeID]:
+    #     parts = node_id.split("::")
+    #     return Path(parts[0]), int(parts[1])
+
+    def to_str(self):
+        repr = ""
+        for u, v, _ in self._graph.edges(data=True):
+            u = self.get_node(u)
+            v = self.get_node(v)
+            repr += f"{u} -> {v}\n"
+
+        return repr
