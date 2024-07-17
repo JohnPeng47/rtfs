@@ -7,6 +7,6 @@ from scope_graph.scope_resolution.graph import ScopeID
 
 @dataclass
 class Export:
-    ns: NameSpace
+    namespace: NameSpace
     scope_id: ScopeID
     file_path: Path

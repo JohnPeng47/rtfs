@@ -10,9 +10,8 @@ from scope_graph.scope_resolution import LocalImportStmt
 from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
 from scope_graph.config import LANGUAGE
 
-from .imports import Import, import_stmt_to_import
-from .exports import Export
-from .graph_type import RepoNode
+from .imports import Import, ModuleType, import_stmt_to_import
+from .graph_type import EdgeKind, RepoNode
 
 import logging
 
@@ -23,35 +22,48 @@ logger = logging.getLogger(__name__)
 # probably not, since we do want struct to hold repo level info
 class RepoGraph:
     """
-    Constructs a graph of relation between files in a repo
+    Constructs a graph of relation between the scopes of a repo
     """
 
     def __init__(self, path: Path):
         fs = RepoFs(path)
 
         self._graph = DiGraph()
-
         self.scopes_map: Dict[Path, ScopeGraph] = self.construct_scopes(fs)
-
         self._imports: Dict[Path, List[Import]] = {}
-        self._exports: Dict[Path, List[Export]] = {}
-
-        # construct exports
-        for path, g in self.scopes_map.items():
-            self._exports[path] = self.construct_exports(g, path)
-
-        # construct imports
-        for path, g in self.scopes_map.items():
-            self._imports = self.construct_import(g, path, fs)
 
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
 
-        # map the chunks from Moatless
-        # self.scope_chunk_map: Dict[ScopeList, Chunk]
+        # construct exports
 
-    def create_node(self, node: RepoNode):
-        self._graph.add_node(**node.dict())
+        # construct imports
+        for path, g in self.scopes_map.items():
+            self._imports[path] = self.construct_import(g, path, fs)
+
+        # map import ref to export scope
+        for path, imports in self._imports.items():
+            for imp in filter(lambda i: i.module_type == ModuleType.LOCAL, imports):
+                local_path = fs.match_file(imp.namespace.to_path())
+                if local_path:
+                    for name, def_scope in self.get_exports(
+                        self.scopes_map[local_path], local_path
+                    ):
+                        if imp.namespace.child == name:
+                            for ref_scope in imp.ref_scopes:
+                                print(f"Adding edge from {ref_scope} to {def_scope}")
+                                self._graph.add_edge(
+                                    ref_scope, def_scope, kind=EdgeKind.ImportToExport
+                                )
+
+    def create_node(self, file: Path, scope_id: ScopeID):
+        node = RepoNode(file, scope_id)
+        self._graph.add_node(node)
+
+        return node
+
+    # def get_node(self, file: Path, scope_id: ScopeID):
+    #     return self._graph.nodes[RepoNode(file, scope_id)]
 
     # TODO: add some sort of hierarchal structure to the scopes?
     def construct_scopes(self, fs: RepoFs) -> Dict[Path, ScopeGraph]:
@@ -95,7 +107,7 @@ class RepoGraph:
         return imports
 
     # NOTE: this would need to be handled differently for other langs
-    def construct_exports(self, g: ScopeGraph, file: Path) -> List[Export]:
+    def get_exports(self, g: ScopeGraph, file: Path) -> List[Tuple[str, ScopeID]]:
         """
         Constructs a map from file to its exports (unreferenced definitions)
         """
@@ -113,7 +125,6 @@ class RepoGraph:
                     def_node.data["def_type"] == "class"
                     or def_node.data["def_type"] == "function"
                 ):
-                    logger.debug("File export: ", file, "DEF_NODE: ", def_node.name)
-                    exports.append(Export(def_node.name, scope, file))
+                    exports.append((def_node.name, scope))
 
         return exports

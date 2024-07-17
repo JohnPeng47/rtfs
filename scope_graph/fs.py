@@ -35,8 +35,15 @@ class RepoFs:
 
         for path in self._get_all_paths():
             # could be folder or path
-            if path.match(f"**/{ns_path}") or path.match(f"**/{ns_path}{SRC_EXT}"):
-                return path
+            if path.match(f"**/{ns_path}{SRC_EXT}"):
+                return path.resolve()
+
+            elif path.match(f"**/{ns_path}"):
+                if LANGUAGE == "python":
+                    if path.is_dir():
+                        return (path / "__init__.py").resolve()
+
+                return path.resolve()
 
         return None
 

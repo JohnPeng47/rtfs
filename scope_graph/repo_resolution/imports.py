@@ -57,7 +57,7 @@ def import_stmt_to_import(
     imports = []
     namespaces = []
 
-    logger.info(f"Finding imports for file: {filepath}")
+    logger.debug(f"Finding imports for file: {filepath}")
     # from foo.bar import baz
     # root_ns = foo.bar
     # name = baz
@@ -83,7 +83,7 @@ def import_stmt_to_import(
         else:
             module_type = ModuleType.UNKNOWN
 
-        logger.info(f"Import: {ns} {module_type} {import_path}")
+        # logger.debug(f"Import: {ns} {module_type} {import_path}")
 
         # resolve refs to this import
         ref_scopes = []
@@ -93,7 +93,7 @@ def import_stmt_to_import(
                 if ref_node.name == ns.child:
                     ref_scopes.append(scope)
 
-        print("Ref scopes: ", ref_scopes)
+        # logger.debug("Ref scopes: ", ref_scopes)
 
         imports.append(
             Import(

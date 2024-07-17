@@ -10,4 +10,5 @@ def main():
 
 
 class A:
-    pass
+    def func1():
+        pass
