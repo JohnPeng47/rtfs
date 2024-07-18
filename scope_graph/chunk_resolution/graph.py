@@ -21,6 +21,10 @@ class ChunkNode(Node):
     id: str
     metadata: ChunkMetadata
     scope_ids: List[int]
+    content: str
+
+    def __hash__(self):
+        return hash(self.id + "".join(self.metadata.span_ids))
 
     def __str__(self):
         return f"{self.metadata.file_name}"

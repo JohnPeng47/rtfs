@@ -11,7 +11,9 @@ from scope_graph.moatless.epic_split import EpicSplitter
 from scope_graph.moatless.settings import IndexSettings
 
 from scope_graph.chunk_resolution.chunk_graph import ChunkGraph
-from cluster import gen_clusters
+
+
+JSON_GRAPH_FILE = "graph.json"
 
 
 def ingest(repo_path: str) -> ChunkGraph:
@@ -96,12 +98,12 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
     if load:
-        with open("cluster.json", "r") as f:
+        with open(JSON_GRAPH_FILE, "r") as f:
             graph_dict = json.loads(f.read())
             cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
-            clusters = cg.cluster()
-            print(json.dumps(clusters, indent=4))
+            chunk2cluster, cluster2chunk = cg.cluster()
+            print(json.dumps(chunk2cluster, indent=4))
 
             exit()
 
@@ -110,5 +112,5 @@ if __name__ == "__main__":
 
     if save:
         graph_dict = nx.node_link_data(cg._graph)
-        with open("cluster.json", "w") as f:
+        with open(JSON_GRAPH_FILE, "w") as f:
             f.write(json.dumps(graph_dict))

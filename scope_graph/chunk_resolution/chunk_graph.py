@@ -31,7 +31,7 @@ class ChunkGraph:
         g = DiGraph()
         cg: ChunkGraph = cls(repo_path, g)
 
-        scope2chunk: Dict[RepoNodeID, str] = {}
+        scope2chunk: Dict[RepoNodeID, str] = {}  # maps repo node id to chunk id
         cg._file2scope = defaultdict(set)
         chunk_names = set()
 
@@ -54,10 +54,15 @@ class ChunkGraph:
 
             for scope in chunk_scopes:
                 repo_id = repo_node_id(metadata.file_path, scope)
-                scope2chunk[repo_id] = chunk.node_id
+                scope2chunk[repo_id] = short_name
 
             cg.add_node(
-                ChunkNode(id=short_name, metadata=metadata, scope_ids=chunk_scopes)
+                ChunkNode(
+                    id=short_name,
+                    metadata=metadata,
+                    scope_ids=chunk_scopes,
+                    content=chunk.get_content(),
+                )
             )
 
         # shouldnt really happen but ...
@@ -122,8 +127,6 @@ class ChunkGraph:
     ) -> List[ScopeID]:
         print("Getting scopes for: ", start_line, end_line, file_path.name)
 
-        from collections import defaultdict
-
         range = TextRange(
             start_byte=0,
             end_byte=0,
@@ -167,8 +170,24 @@ class ChunkGraph:
             repr += f"{u_node} -> {v_node}\n"
         return repr
 
-    def cluster(self):
-        return cluster(self._graph)
+    def cluster(self) -> Tuple[Dict[ChunkNode, int], Dict[int, List[ChunkNode]]]:
+        """
+        Get the node cluster and remap it to ChunkNodes
+        """
+        node2cluster: Dict[ChunkNode, int] = {}
+        cluster2node: Dict[int, List[ChunkNode]] = {}
+
+        chunk2clusters, cluster2chunks = cluster(self._graph)
+        node2cluster = {
+            self.get_node(node_id): cluster
+            for node_id, cluster in chunk2clusters.items()
+        }
+        cluster2node = {
+            cluster: [self.get_node(node_id) for node_id in node_ids]
+            for cluster, node_ids in cluster2chunks.items()
+        }
+
+        return node2cluster, cluster2node
 
     def _chunk_short_name(self, chunk_node: BaseNode, i: int) -> str:
         # class_func = self._get_classes_and_funcs(
@@ -189,6 +208,10 @@ class ChunkGraph:
         return list(
             filter(lambda d: d.data["def_type"] in ["class", "function"], def_nodes)
         )
+
+    ##### For debugging ####!SECTION
+    def nodes(self):
+        return self._graph.nodes(data=True)
 
     # def get_import_refs(
     #     self, unresolved_refs: set[str], file_path: Path, scopes: List[ScopeID]

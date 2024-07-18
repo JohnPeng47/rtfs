@@ -2,6 +2,8 @@ import networkx as nx
 import leidenalg as la
 import igraph as ig
 
+from collections import defaultdict
+
 
 def cluster(digraph: nx.DiGraph):
     # Convert NetworkX DiGraph to igraph Graph
@@ -28,10 +30,13 @@ def cluster(digraph: nx.DiGraph):
     partition = la.find_partition(ig_graph, la.ModularityVertexPartition)
 
     # Extract the clusters using original node IDs
-    clusters = {}
+    chunk2clusters = {}
+    cluster2chunks = defaultdict(list)
+
     for idx, cluster in enumerate(partition):
         for node in cluster:
             original_node_id = ig_graph.vs[node]["name"]
-            clusters[original_node_id] = idx
+            chunk2clusters[original_node_id] = idx
+            cluster2chunks[idx].append(original_node_id)
 
-    return clusters
+    return chunk2clusters, cluster2chunks
