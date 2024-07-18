@@ -1,6 +1,6 @@
 from typing import Optional
 
-from moatless.codeblocks.parser.parser import CodeParser
+from scope_graph.moatless.parser.parser import CodeParser
 from moatless.codeblocks.parser.python import PythonParser
 
 

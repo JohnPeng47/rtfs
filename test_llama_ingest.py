@@ -11,7 +11,7 @@ from scope_graph.moatless.settings import IndexSettings
 from scope_graph.chunk_resolution.chunk_graph import ChunkGraph
 
 
-def ingest(repo_path: str):
+def ingest(repo_path: str) -> ChunkGraph:
     def file_metadata_func(file_path: str) -> Dict:
         file_path = file_path.replace(repo_path, "")
         if file_path.startswith("/"):
@@ -58,6 +58,8 @@ def ingest(repo_path: str):
 
     prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
     chunk_graph = ChunkGraph(Path(repo_path), prepared_nodes)
+
+    return chunk_graph
 
 
 if __name__ == "__main__":

@@ -6,8 +6,8 @@ from pydantic import (
     ConfigDict,
 )
 
-from moatless.codeblocks import CodeBlock, CodeBlockType
-from moatless.codeblocks.codeblocks import BlockSpan, SpanType
+from scope_graph.moatless.codeblocks import CodeBlock, CodeBlockType
+from scope_graph.moatless.codeblocks import BlockSpan, SpanType
 
 logger = logging.getLogger(__name__)
 

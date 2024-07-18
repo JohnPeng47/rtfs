@@ -8,7 +8,7 @@ import networkx as nx
 from llama_index.core import get_tokenizer
 from tree_sitter import Node, Language, Parser
 
-from moatless.codeblocks.codeblocks import (
+from scope_graph.moatless.codeblocks import (
     CodeBlock,
     CodeBlockType,
     Relationship,
@@ -19,8 +19,8 @@ from moatless.codeblocks.codeblocks import (
     CodeBlockTypeGroup,
     SpanType,
 )
-from moatless.codeblocks.module import Module
-from moatless.codeblocks.parser.comment import get_comment_symbol
+from scope_graph.moatless.module import Module
+from scope_graph.moatless.parser.comment import get_comment_symbol
 
 commented_out_keywords = ["rest of the code", "existing code", "other code"]
 child_block_types = ["ERROR", "block"]
@@ -121,7 +121,7 @@ class CodeParser:
 
     def _build_queries(self, query_file: str):
         with resources.open_text(
-            "moatless.codeblocks.parser.queries", query_file
+            "scope_graph.moatless.parser.queries", query_file
         ) as file:
             query_list = file.read().strip().split("\n\n")
             parsed_queries = []

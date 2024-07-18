@@ -171,8 +171,9 @@ class EpicSplitter(NodeParser):
                     )
 
             except Exception as e:
-                print(
-                    f"Failed to use epic splitter to split {file_path}. Fallback to treesitter_split(). Error: {e}"
+                logger.error(
+                    f"Failed to use epic splitter to split {file_path}. Fallback to treesitter_split(). Error: {e}",
+                    exc_info=True,
                 )
                 # TODO: Fall back to treesitter or text split
                 continue
