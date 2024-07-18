@@ -25,7 +25,8 @@ def main():
 
 
 # test = open("tests/repos/test-import-ref/parser.py", "rb").read()
-scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
-print(scope_graph.to_str())
+# scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python"))
+# print(scope_graph.to_str())
 
-# repo_graph = RepoGraph(Path("tests/repos/test-import-ref"))
+repo_graph = RepoGraph(Path("tests/repos/cowboy"))
+print(repo_graph.to_str())

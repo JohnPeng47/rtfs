@@ -10,13 +10,11 @@ from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
 from scope_graph.config import LANGUAGE
 
 from .imports import Import, ModuleType, import_stmt_to_import
-from .graph_type import EdgeKind, RepoNode
+from .graph_type import EdgeKind, RepoNode, RepoNodeID
 
 import logging
 
 logger = logging.getLogger(__name__)
-
-RepoNodeID = NewType("RepoNodeID", str)
 
 
 def repo_node_id(file: Path, scope_id: ScopeID):
@@ -36,6 +34,8 @@ class RepoGraph:
         self._graph = DiGraph()
         self.scopes_map: Dict[Path, ScopeGraph] = self._construct_scopes(fs)
         self._imports: Dict[Path, List[Import]] = {}
+
+        self.total_scopes = set()
 
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
@@ -58,12 +58,14 @@ class RepoGraph:
                                 ref_node_id = repo_node_id(path, ref_scope)
                                 ref_node = self.get_node(ref_node_id)
                                 if not ref_node:
-                                    self.create_node(path, ref_scope)
+                                    self.total_scopes.add(ref_node_id)
+                                    self.create_node(ref_node_id)
 
                                 imp_node_id = repo_node_id(local_path, def_scope)
                                 imp_node = self.get_node(imp_node_id)
                                 if not imp_node:
-                                    self.create_node(local_path, def_scope)
+                                    self.total_scopes.add(ref_node_id)
+                                    self.create_node(imp_node_id)
 
                                 self._graph.add_edge(
                                     ref_node_id,
@@ -74,24 +76,18 @@ class RepoGraph:
     def get_node(self, node_id: RepoNodeID) -> RepoNode:
         node = self._graph.nodes.get(node_id, None)
         if node:
-            return RepoNode(id=node_id, name=node["name"])
+            return RepoNode(repo_id=node_id)
 
         return None
 
-    def create_node(self, file: Path, scope_id: ScopeID):
-        node_id = repo_node_id(str(file), scope_id)
-        node = RepoNode(id=node_id, name=file.name)
+    def create_node(self, node_id: RepoNodeID):
+        node = RepoNode(repo_id=node_id)
 
-        self._graph.add_node(node.id, name=node.name)
+        self._graph.add_node(node.repo_id, name=node.name)
         return node
 
-    def get_imports(self, file: Path, scope_id: ScopeID) -> List[RepoNodeID]:
-        node = self.get_node(file, scope_id)
-        return [
-            u
-            for _, u, attrs in self._graph.out_edges(node)
-            if attrs["kind"] == EdgeKind.ImportToExport
-        ]
+    def get_export_refs(self, ref_node_id: RepoNodeID) -> List[RepoNodeID]:
+        return [v for u, v in self._graph.edges(ref_node_id) if u == ref_node_id]
 
     # TODO: add some sort of hierarchal structure to the scopes?
     def _construct_scopes(self, fs: RepoFs) -> Dict[Path, ScopeGraph]:
@@ -157,15 +153,14 @@ class RepoGraph:
 
         return exports
 
-    # def _reverse_node_id(self, node_id: RepoNodeID) -> Tuple[Path, ScopeID]:
-    #     parts = node_id.split("::")
-    #     return Path(parts[0]), int(parts[1])
-
     def to_str(self):
         repr = ""
         for u, v, _ in self._graph.edges(data=True):
+            print("u: ", u)
+            print("v: ", v)
             u = self.get_node(u)
             v = self.get_node(v)
+
             repr += f"{u} -> {v}\n"
 
         return repr

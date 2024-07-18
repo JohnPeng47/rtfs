@@ -1,5 +1,3 @@
-from typing import Callable
-
 from scope_graph.repo_resolution.repo_graph import RepoGraph
 from conftest import repo_graph
 import os
@@ -8,9 +6,7 @@ import pytest
 
 
 @pytest.mark.parametrize("repo_graph", ["tests/repos/cowboy"], indirect=["repo_graph"])
-def test_imports(repo_graph: RepoGraph):
-    sep = os.path.sep
-
+def test_imports_repo_graph(repo_graph: RepoGraph):
     imports = """browser.py -> utils.py
 cli.py -> models.py
 cli.py -> repo.py

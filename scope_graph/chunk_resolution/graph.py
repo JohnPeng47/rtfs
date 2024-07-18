@@ -1,10 +1,29 @@
+from enum import Enum
+from typing import List
+from pydantic.dataclasses import dataclass
+
 from scope_graph.scope_resolution.graph import Node
 
-from enum import Enum
+
+@dataclass
+class ChunkMetadata:
+    file_path: str
+    file_name: str
+    file_type: str
+    category: str
+    tokens: int
+    span_ids: List[str]
+    start_line: int
+    end_line: int
 
 
 class ChunkNode(Node):
     id: str
+    metadata: ChunkMetadata
+    scope_ids: List[int]
+
+    def __str__(self):
+        return f"{self.metadata.file_name}"
 
 
 class EdgeKind(str, Enum):

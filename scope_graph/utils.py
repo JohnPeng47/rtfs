@@ -35,6 +35,9 @@ class TextRange(BaseModel):
             end_point=end_point,
         )
 
+    def line_range(self):
+        return self.start_point.row, self.end_point.row
+
     def contains(self, range: "TextRange"):
         return range.start_byte >= self.start_byte and range.end_byte <= self.end_byte
 

@@ -84,4 +84,4 @@ if __name__ == "__main__":
     print(logging.getLogger().getEffectiveLevel())
 
     # ingest("tests/repos/test-import-ref")
-    ingest("tests/repos/small_repo")
+    ingest("tests/repos/cowboy")
