@@ -196,12 +196,12 @@ class ScopeGraph:
 
         return all_imports
 
-    def definitions(self, start: int) -> List[int]:
+    def definitions(self, start: int) -> List[ScopeNode]:
         """
         Get all definitions in the scope and child scope
         """
         return [
-            u
+            self.get_node(u)
             for u, v, attrs in self._graph.in_edges(start, data=True)
             if attrs["type"] == EdgeKind.DefToScope
         ]
@@ -211,7 +211,7 @@ class ScopeGraph:
 
         scopes = self.scopes()
         for scope in scopes:
-            all_defs.extend([self.get_node(i) for i in self.definitions(scope)])
+            all_defs.extend(self.definitions(scope))
 
         return all_defs
 

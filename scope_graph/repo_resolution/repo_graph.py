@@ -142,8 +142,7 @@ class RepoGraph:
         outer_scopes = [g.root_idx] + [s for s in g.child_scopes(g.root_idx)]
 
         for scope in outer_scopes:
-            for defn in g.definitions(scope):
-                def_node = g.get_node(defn)
+            for def_node in g.definitions(scope):
                 # dont want to pick up non class/func defs in the root - 1 scope
                 if scope != g.root_idx and (
                     def_node.data["def_type"] == "class"

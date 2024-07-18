@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 from pydantic.dataclasses import dataclass
 
 from scope_graph.scope_resolution.graph import Node

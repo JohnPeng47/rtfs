@@ -2,6 +2,7 @@ from networkx import DiGraph, node_link_graph
 from pathlib import Path
 from llama_index.core.schema import BaseNode
 from typing import List, Tuple, Dict
+import os
 
 from scope_graph.scope_resolution.graph import ScopeGraph, ScopeID
 from scope_graph.repo_resolution.repo_graph import RepoGraph, RepoNodeID, repo_node_id
@@ -9,6 +10,7 @@ from scope_graph.utils import TextRange
 from scope_graph.fs import RepoFs
 
 from .graph import ChunkMetadata, ChunkNode, EdgeKind
+from .cluster import cluster
 
 import logging
 from collections import defaultdict
@@ -31,10 +33,11 @@ class ChunkGraph:
 
         scope2chunk: Dict[RepoNodeID, str] = {}
         cg._file2scope = defaultdict(set)
+        chunk_names = set()
 
-        for chunk in chunks:
+        for i, chunk in enumerate(chunks, start=1):
             metadata = ChunkMetadata(**chunk.metadata)
-            chunk_scopes = cg.get_chunk_scopes(
+            chunk_scopes = cg._get_chunk_scopes(
                 Path(metadata.file_path),
                 metadata.start_line,
                 metadata.end_line,
@@ -44,13 +47,22 @@ class ChunkGraph:
             # logger.debug(f"Chunk: {chunk.get_content()}")
             # logger.debug(f"start: {metadata.start_line}, end: {metadata.end_line}")
 
+            short_name = cg._chunk_short_name(chunk, i)
+            chunk_names.add(short_name)
+
+            print("Chunk: ", short_name)
+
             for scope in chunk_scopes:
                 repo_id = repo_node_id(metadata.file_path, scope)
                 scope2chunk[repo_id] = chunk.node_id
 
             cg.add_node(
-                ChunkNode(id=chunk.node_id, metadata=metadata, scope_ids=chunk_scopes)
+                ChunkNode(id=short_name, metadata=metadata, scope_ids=chunk_scopes)
             )
+
+        # shouldnt really happen but ...
+        if len(chunk_names) != len(chunks):
+            raise ValueError("Collision has occurred in chunk names")
 
         # get import_chunk -> scope -> scope -> export_chunk
         for node in cg.get_all_nodes():
@@ -105,7 +117,7 @@ class ChunkGraph:
     def get_scope_range(self, file: Path, range: TextRange) -> List[ScopeID]:
         return self._repo_graph.scopes_map[file].scopes_by_range(range, overlap=True)
 
-    def get_chunk_scopes(
+    def _get_chunk_scopes(
         self, file_path: Path, start_line: int, end_line: int
     ) -> List[ScopeID]:
         print("Getting scopes for: ", start_line, end_line, file_path.name)
@@ -135,7 +147,6 @@ class ChunkGraph:
                 ):
                     chunk_scopes.add(child_scope)
                     self._file2scope[file_path].add(child_scope)
-
                 #     scope2file[child_scope].append(file_path)
                 else:
                     scope_graph = self._repo_graph.scopes_map[file_path]
@@ -155,6 +166,29 @@ class ChunkGraph:
             v_node = self.get_node(v)
             repr += f"{u_node} -> {v_node}\n"
         return repr
+
+    def cluster(self):
+        return cluster(self._graph)
+
+    def _chunk_short_name(self, chunk_node: BaseNode, i: int) -> str:
+        # class_func = self._get_classes_and_funcs(
+        #     Path(chunk_node.metadata["file_path"]), head_scope
+        # )[0]
+
+        filename = "/".join(chunk_node.metadata["file_path"].split(os.sep)[-2:])
+        size = chunk_node.metadata["end_line"] - chunk_node.metadata["start_line"]
+        # return f"{filename}.{class_func}.{size}"
+
+        return f"{filename}#{i}.{size}"
+
+    def _get_classes_and_funcs(
+        self, file_path: Path, scope_id: ScopeID
+    ) -> List[RepoNodeID]:
+        def_nodes = self._repo_graph.scopes_map[file_path].definitions(scope_id)
+
+        return list(
+            filter(lambda d: d.data["def_type"] in ["class", "function"], def_nodes)
+        )
 
     # def get_import_refs(
     #     self, unresolved_refs: set[str], file_path: Path, scopes: List[ScopeID]

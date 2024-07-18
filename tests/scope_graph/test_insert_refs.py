@@ -59,4 +59,3 @@ def debug_log(self, message: str):
     g = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
 
     print([g.get_node(r).name for r in g.references_by_origin(1)])
-    print([g.get_node(d).name for d in g.definitions(1)])

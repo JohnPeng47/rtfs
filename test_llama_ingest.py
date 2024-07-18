@@ -11,6 +11,7 @@ from scope_graph.moatless.epic_split import EpicSplitter
 from scope_graph.moatless.settings import IndexSettings
 
 from scope_graph.chunk_resolution.chunk_graph import ChunkGraph
+from cluster import gen_clusters
 
 
 def ingest(repo_path: str) -> ChunkGraph:
@@ -60,7 +61,6 @@ def ingest(repo_path: str) -> ChunkGraph:
 
     prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
     chunk_graph = ChunkGraph.from_chunks(Path(repo_path), prepared_nodes)
-    print(chunk_graph.to_str())
 
     return chunk_graph
 
@@ -95,18 +95,15 @@ if __name__ == "__main__":
         log_level = args.loglevel
 
     logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
-    print(logging.getLogger().getEffectiveLevel())
-
     if load:
         with open("cluster.json", "r") as f:
             graph_dict = json.loads(f.read())
             cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
-            print(cg.to_str())
+            clusters = cg.cluster()
+            print(json.dumps(clusters, indent=4))
 
-            import sys
-
-            sys.exit()
+            exit()
 
     # ingest("tests/repos/test-import-ref")
     cg = ingest(repo_path)
