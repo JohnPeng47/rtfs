@@ -1,4 +1,4 @@
-from networkx import DiGraph
+from networkx import DiGraph, node_link_graph
 from pathlib import Path
 from llama_index.core.schema import BaseNode
 from typing import List, Tuple, Dict
@@ -18,18 +18,23 @@ logger = logging.getLogger(__name__)
 
 
 class ChunkGraph:
-    def __init__(self, repo_path: Path, chunks: List[BaseNode]):
+    def __init__(self, repo_path: Path, g: DiGraph):
         self.fs = RepoFs(repo_path)
-        self._graph = DiGraph()
+        self._graph = g
         self._repo_graph = RepoGraph(repo_path)
+        self._file2scope = defaultdict(set)
 
-        # self.total_scopes = set()
-        self.scope2chunk: Dict[RepoNodeID, str] = {}
-        self.file2scope = defaultdict(set)
+    @classmethod
+    def from_chunks(cls, repo_path: Path, chunks: List[BaseNode]):
+        g = DiGraph()
+        cg: ChunkGraph = cls(repo_path, g)
+
+        scope2chunk: Dict[RepoNodeID, str] = {}
+        cg._file2scope = defaultdict(set)
 
         for chunk in chunks:
             metadata = ChunkMetadata(**chunk.metadata)
-            chunk_scopes = self.get_scopes(
+            chunk_scopes = cg.get_chunk_scopes(
                 Path(metadata.file_path),
                 metadata.start_line,
                 metadata.end_line,
@@ -41,28 +46,28 @@ class ChunkGraph:
 
             for scope in chunk_scopes:
                 repo_id = repo_node_id(metadata.file_path, scope)
-                self.scope2chunk[repo_id] = chunk.node_id
+                scope2chunk[repo_id] = chunk.node_id
 
-            self.add_node(
+            cg.add_node(
                 ChunkNode(id=chunk.node_id, metadata=metadata, scope_ids=chunk_scopes)
             )
 
         # get import_chunk -> scope -> scope -> export_chunk
-        for node in self.get_all_nodes():
+        for node in cg.get_all_nodes():
             for scope in node.scope_ids:
-                ref_ids = self._repo_graph.get_export_refs(
+                ref_ids = cg._repo_graph.get_export_refs(
                     repo_node_id(node.metadata.file_path, scope)
                 )
 
                 if ref_ids:
                     for exp_ref in ref_ids:
-                        chunk_id = self.scope2chunk[exp_ref]
-                        self._graph.add_edge(
+                        chunk_id = scope2chunk[exp_ref]
+                        cg._graph.add_edge(
                             node.id, chunk_id, kind=EdgeKind.ImportToExport
                         )
 
-        for f, scopes in self.file2scope.items():
-            all_scopes = self._repo_graph.scopes_map[f].scopes()
+        for f, scopes in cg._file2scope.items():
+            all_scopes = cg._repo_graph.scopes_map[f].scopes()
             all_scopes = set(all_scopes)
 
             unresolved = all_scopes - scopes
@@ -72,8 +77,23 @@ class ChunkGraph:
         # logger.info(f"Resolved: {resolved}")
         # logger.info(f"Unresolved: {unresolved}")
 
+        return cg
+
+    @classmethod
+    def from_json(cls, repo_path: Path, json_data: Dict):
+        cg = node_link_graph(json_data)
+
+        return cls(repo_path, cg)
+
     def get_node(self, node_id: str) -> ChunkNode:
-        return ChunkNode(**self._graph._node[node_id])
+        data = self._graph._node[node_id]
+
+        # BUG: hacky fix but for some reason node_link_data stores
+        # the data wihtout id
+        if data.get("id", None):
+            del data["id"]
+
+        return ChunkNode(id=node_id, **self._graph._node[node_id])
 
     def get_all_nodes(self) -> List[ChunkNode]:
         return [self.get_node(n) for n in self._graph.nodes]
@@ -85,7 +105,7 @@ class ChunkGraph:
     def get_scope_range(self, file: Path, range: TextRange) -> List[ScopeID]:
         return self._repo_graph.scopes_map[file].scopes_by_range(range, overlap=True)
 
-    def get_scopes(
+    def get_chunk_scopes(
         self, file_path: Path, start_line: int, end_line: int
     ) -> List[ScopeID]:
         print("Getting scopes for: ", start_line, end_line, file_path.name)
@@ -114,7 +134,7 @@ class ChunkGraph:
                     scope_graph.get_node(child_scope).range, overlap=True
                 ):
                     chunk_scopes.add(child_scope)
-                    self.file2scope[file_path].add(child_scope)
+                    self._file2scope[file_path].add(child_scope)
 
                 #     scope2file[child_scope].append(file_path)
                 else:

@@ -3,6 +3,8 @@ import os
 from typing import Dict
 import mimetypes
 import fnmatch
+import networkx as nx
+import json
 
 from llama_index.core import SimpleDirectoryReader
 from scope_graph.moatless.epic_split import EpicSplitter
@@ -57,7 +59,8 @@ def ingest(repo_path: str) -> ChunkGraph:
     )
 
     prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
-    chunk_graph = ChunkGraph(Path(repo_path), prepared_nodes)
+    chunk_graph = ChunkGraph.from_chunks(Path(repo_path), prepared_nodes)
+    print(chunk_graph.to_str())
 
     return chunk_graph
 
@@ -77,13 +80,38 @@ if __name__ == "__main__":
         dest="loglevel",
         const=logging.DEBUG,
     )
+    parser.add_argument(
+        "--save", help="Save the output to cluster.json", action="store_true"
+    )
+    parser.add_argument(
+        "--load", help="Load the output from cluster.json", action="store_true"
+    )
 
+    repo_path = "tests/repos/cowboy"
     args = parser.parse_args()
+    save = args.save
+    load = args.load
     if args.loglevel:
         log_level = args.loglevel
 
     logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
     print(logging.getLogger().getEffectiveLevel())
 
+    if load:
+        with open("cluster.json", "r") as f:
+            graph_dict = json.loads(f.read())
+            cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
+
+            print(cg.to_str())
+
+            import sys
+
+            sys.exit()
+
     # ingest("tests/repos/test-import-ref")
-    ingest("tests/repos/cowboy")
+    cg = ingest(repo_path)
+
+    if save:
+        graph_dict = nx.node_link_data(cg._graph)
+        with open("cluster.json", "w") as f:
+            f.write(json.dumps(graph_dict))
