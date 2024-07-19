@@ -25,7 +25,7 @@ class ModuleType(str, Enum):
 
 
 @dataclass
-class Import:
+class LocalImport:
     """
     This represents a single Import that is the result of joining
     from_name and names in LocalImportStmt
@@ -50,7 +50,7 @@ def import_stmt_to_import(
     fs: RepoFs,
     sys_modules: SysModules,
     third_party_modules: ThirdPartyModules,
-) -> List[Import]:
+) -> List[LocalImport]:
     """
     Convert an import statement, which may hold multiple imports
     """
@@ -96,7 +96,7 @@ def import_stmt_to_import(
         # logger.debug("Ref scopes: ", ref_scopes)
 
         imports.append(
-            Import(
+            LocalImport(
                 ns,
                 module_type,
                 filepath,

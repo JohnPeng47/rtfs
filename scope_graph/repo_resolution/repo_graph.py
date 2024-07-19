@@ -9,9 +9,10 @@ from scope_graph.scope_resolution import LocalImportStmt
 from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
 from scope_graph.config import LANGUAGE
 
-from .imports import Import, ModuleType, import_stmt_to_import
+from .imports import NameSpace, LocalImport, ModuleType, import_stmt_to_import
 from .graph_type import EdgeKind, RepoNode, RepoNodeID
 
+from collections import defaultdict
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,18 +24,26 @@ def repo_node_id(file: Path, scope_id: ScopeID):
 
 # rename to import graph?
 # probably not, since we do want struct to hold repo level info
+
+
+# this graph is python specific
 class RepoGraph:
     """
     Constructs a graph of relation between the scopes of a repo
     """
 
     def __init__(self, path: Path):
-        fs = RepoFs(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Path {path} does not exist")
 
+        self.fs = RepoFs(path)
         self._graph = DiGraph()
-        self.scopes_map: Dict[Path, ScopeGraph] = self._construct_scopes(fs)
-        self._imports: Dict[Path, List[Import]] = {}
+        self.scopes_map: Dict[Path, ScopeGraph] = self._construct_scopes(self.fs)
+        self._imports: Dict[Path, List[LocalImport]] = {}
 
+        # FOR DEBUGGING
+        self._missing_import_refs: Dict[Path, List[str]] = {}
+        self._resolved_import_refs: Dict[Path, List[str]] = defaultdict(list)
         self.total_scopes = set()
 
         # parse calls and parameters here
@@ -42,36 +51,59 @@ class RepoGraph:
 
         # construct imports
         for path, g in self.scopes_map.items():
-            self._imports[path] = self._construct_import(g, path, fs)
+            self._imports[path] = self._construct_import(g, path, self.fs)
+            self._missing_import_refs[path] = [
+                imp.namespace for imp in self._imports[path]
+            ]
 
         # map import ref to export scope
         for path, imports in self._imports.items():
-            for imp in filter(lambda i: i.module_type == ModuleType.LOCAL, imports):
-                local_path = fs.match_file(imp.namespace.to_path())
-                if local_path:
-                    for name, def_scope in self._get_exports(
-                        self.scopes_map[local_path], local_path
-                    ):
-                        if imp.namespace.child == name:
-                            for ref_scope in imp.ref_scopes:
-                                # create nodes and edges
-                                ref_node_id = repo_node_id(path, ref_scope)
-                                ref_node = self.get_node(ref_node_id)
-                                if not ref_node:
-                                    self.total_scopes.add(ref_node_id)
-                                    self.create_node(ref_node_id)
+            imp2def: List[Tuple[LocalImport, str, ScopeID, Path]] = []
 
-                                imp_node_id = repo_node_id(local_path, def_scope)
-                                imp_node = self.get_node(imp_node_id)
-                                if not imp_node:
-                                    self.total_scopes.add(ref_node_id)
-                                    self.create_node(imp_node_id)
+            # resolve the different types of imports
+            local_imports = [
+                local_imp
+                for local_imp in imports
+                if local_imp.module_type == ModuleType.LOCAL
+            ]
+            imp2def.extend(self.map_local_to_exports(path, local_imports))
 
-                                self._graph.add_edge(
-                                    ref_node_id,
-                                    imp_node_id,
-                                    kind=EdgeKind.ImportToExport,
-                                )
+            for imp, def_scope, name, export_file in imp2def:
+                if imp.module_type == ModuleType.LOCAL:
+                    # establish an edge between all refs from all local scopes to the
+                    # def scope in import_file
+                    for ref_scope in imp.ref_scopes:
+                        # TODO: convert this to debug
+                        if "client.py" in str(path):
+                            print(
+                                f"Adding ref: {imp.namespace.child}:{ref_scope} -> {export_file}:{def_scope}"
+                            )
+
+                        # create nodes and edges
+                        ref_node_id = repo_node_id(path, ref_scope)
+                        ref_node = self.get_node(ref_node_id)
+                        if not ref_node:
+                            self.total_scopes.add(ref_node_id)
+                            ref_node = self.create_node(ref_node_id)
+
+                        self._missing_import_refs[path] = [
+                            ref
+                            for ref in self._missing_import_refs[path]
+                            if ref != imp.namespace.child
+                        ]
+                        self._resolved_import_refs[path].append(name)
+
+                        imp_node_id = repo_node_id(export_file, def_scope)
+                        imp_node = self.get_node(imp_node_id)
+                        if not imp_node:
+                            self.total_scopes.add(ref_node_id)
+                            self.create_node(imp_node_id)
+
+                        self._graph.add_edge(
+                            ref_node_id,
+                            imp_node_id,
+                            kind=EdgeKind.ImportToExport,
+                        )
 
     def get_node(self, node_id: RepoNodeID) -> RepoNode:
         node = self._graph.nodes.get(node_id, None)
@@ -88,6 +120,31 @@ class RepoGraph:
 
     def get_export_refs(self, ref_node_id: RepoNodeID) -> List[RepoNodeID]:
         return [v for u, v in self._graph.edges(ref_node_id) if u == ref_node_id]
+
+    # Python impl
+    def map_local_to_exports(
+        self, path: Path, imports: List[LocalImport]
+    ) -> List[Tuple[LocalImport, str, ScopeID, Path]]:
+        """
+        Given an import namespace, map it to the local (export) definitions in
+        the resolved import namespace path
+        """
+        imp2def = []
+
+        for imp in imports:
+            export_file = self.fs.match_file(imp.namespace.to_path())
+            if export_file:
+                if "__init__.py" in str(export_file):
+                    print("Skipping: ", export_file)
+                    pass
+                else:
+                    for name, def_scope in self._get_exports(
+                        self.scopes_map[export_file], export_file
+                    ):
+                        if imp.namespace.child == name:
+                            imp2def.append((imp, def_scope, name, export_file))
+
+        return imp2def
 
     # TODO: add some sort of hierarchal structure to the scopes?
     def _construct_scopes(self, fs: RepoFs) -> Dict[Path, ScopeGraph]:
@@ -107,7 +164,7 @@ class RepoGraph:
     # (import_stmt, path, import_type)
     def _construct_import(
         self, g: ScopeGraph, file: Path, fs: RepoFs
-    ) -> Dict[Path, List[Import]]:
+    ) -> Dict[Path, List[LocalImport]]:
         """
         Constructs a map from file to its imports
         """
@@ -155,11 +212,26 @@ class RepoGraph:
     def to_str(self):
         repr = ""
         for u, v, _ in self._graph.edges(data=True):
-            print("u: ", u)
-            print("v: ", v)
             u = self.get_node(u)
             v = self.get_node(v)
 
             repr += f"{u} -> {v}\n"
 
         return repr
+
+    def print_missing_imports(self):
+
+        for path, missing_imports in self._missing_import_refs.items():
+            total_missing = 0
+            total_resolved = 0
+
+            print("Path: ", path)
+            for missed in missing_imports:
+                print("-", missed)
+                total_missing += 1
+            if self._resolved_import_refs.get(path, None):
+                for resolved in self._resolved_import_refs[path]:
+                    total_resolved += 1
+                    print("Resolved: ", resolved)
+
+            print(f"Total missing: {total_missing}, Total resolved: {total_resolved}")

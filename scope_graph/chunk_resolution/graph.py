@@ -27,7 +27,7 @@ class ChunkNode(Node):
         return hash(self.id + "".join(self.metadata.span_ids))
 
     def __str__(self):
-        return f"{self.metadata.file_name}"
+        return f"{self.id}"
 
 
 class EdgeKind(str, Enum):

@@ -89,7 +89,7 @@ if __name__ == "__main__":
         "--load", help="Load the output from cluster.json", action="store_true"
     )
 
-    repo_path = "tests/repos/cowboy"
+    repo_path = "tests/repos/cowboy-server"
     args = parser.parse_args()
     save = args.save
     load = args.load
@@ -107,9 +107,7 @@ if __name__ == "__main__":
 
             exit()
 
-    # ingest("tests/repos/test-import-ref")
     cg = ingest(repo_path)
-
     if save:
         graph_dict = nx.node_link_data(cg._graph)
         with open(JSON_GRAPH_FILE, "w") as f:

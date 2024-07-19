@@ -1,8 +1,10 @@
-from scope_graph.repo_resolution.repo_graph import RepoGraph
+from scope_graph.build_scopes import build_scope_graph
+
 from pathlib import Path
 
 
 def test_import():
+
     g = RepoGraph(Path("tests/repos/small_repo"))
 
     for k, v in g.imports.items():
