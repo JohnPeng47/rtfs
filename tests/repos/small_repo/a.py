@@ -1,4 +1,4 @@
-from src.b import main2
+from src.b import main2, C
 
 
 def main():
@@ -9,6 +9,8 @@ def main():
     pass
 
 
-class A:
+class A(C):
+    @classmethod
     def func1():
+        main2()
         pass

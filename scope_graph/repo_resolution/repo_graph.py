@@ -53,7 +53,7 @@ class RepoGraph:
         for path, g in self.scopes_map.items():
             self._imports[path] = self._construct_import(g, path, self.fs)
             self._missing_import_refs[path] = [
-                imp.namespace for imp in self._imports[path]
+                str(imp.namespace) for imp in self._imports[path]
             ]
 
         # map import ref to export scope
@@ -89,7 +89,7 @@ class RepoGraph:
                         self._missing_import_refs[path] = [
                             ref
                             for ref in self._missing_import_refs[path]
-                            if ref != imp.namespace.child
+                            if ref != str(imp.namespace)
                         ]
                         self._resolved_import_refs[path].append(name)
 
@@ -135,9 +135,11 @@ class RepoGraph:
             export_file = self.fs.match_file(imp.namespace.to_path())
             if export_file:
                 if "__init__.py" in str(export_file):
+                    imports = self._imports[path]
                     print("Skipping: ", export_file)
                     pass
                 else:
+                    # match with exports
                     for name, def_scope in self._get_exports(
                         self.scopes_map[export_file], export_file
                     ):
