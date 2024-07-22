@@ -1,9 +1,0 @@
-
-1: --ImportToScope-> 0:
-2: --ImportToScope-> 0:
-3: --ImportToScope-> 0:
-4:h --DefToScope-> 0:
-5:func1 --DefToScope-> 0:
-6:a --DefToScope-> 0:
-7:b --DefToScope-> 0:
-

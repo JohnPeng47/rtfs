@@ -10,7 +10,7 @@ from scope_graph.utils import TextRange
 from scope_graph.fs import RepoFs
 
 from .graph import ChunkMetadata, ChunkNode, EdgeKind
-from .cluster import cluster
+from .cluster import cluster_leiden, cluster_infomap
 
 import logging
 from collections import defaultdict
@@ -43,14 +43,8 @@ class ChunkGraph:
                 metadata.end_line,
             )
 
-            # logger.debug(f"________________ {metadata.file_name} ________________")
-            # logger.debug(f"Chunk: {chunk.get_content()}")
-            # logger.debug(f"start: {metadata.start_line}, end: {metadata.end_line}")
-
             short_name = cg._chunk_short_name(chunk, i)
             chunk_names.add(short_name)
-
-            print("Chunk: ", short_name)
 
             for scope in chunk_scopes:
                 repo_id = repo_node_id(metadata.file_path, scope)
@@ -119,6 +113,9 @@ class ChunkGraph:
         id = chunk_node.id
         self._graph.add_node(id, **chunk_node.dict())
 
+    def update_node(self, chunk_node: ChunkNode):
+        self._graph.add_node(chunk_node)
+
     def get_scope_range(self, file: Path, range: TextRange) -> List[ScopeID]:
         return self._repo_graph.scopes_map[file].scopes_by_range(range, overlap=True)
 
@@ -170,24 +167,30 @@ class ChunkGraph:
             repr += f"{u_node} -> {v_node}\n"
         return repr
 
-    def cluster(self) -> Tuple[Dict[ChunkNode, int], Dict[int, List[ChunkNode]]]:
+    def cluster(
+        self, alg: str = "infomap"
+    ) -> Tuple[Dict[ChunkNode, int], Dict[int, List[ChunkNode]]]:
         """
         Get the node cluster and remap it to ChunkNodes
         """
         node2cluster: Dict[ChunkNode, int] = {}
         cluster2node: Dict[int, List[ChunkNode]] = {}
 
-        chunk2clusters, cluster2chunks = cluster(self._graph)
-        node2cluster = {
-            self.get_node(node_id): cluster
-            for node_id, cluster in chunk2clusters.items()
-        }
-        cluster2node = {
-            cluster: [self.get_node(node_id) for node_id in node_ids]
-            for cluster, node_ids in cluster2chunks.items()
-        }
+        if alg == "leiden":
+            chunk2clusters, cluster2chunks = cluster_leiden(self._graph)
+        elif alg == "infomap":
+            chunk2clusters, cluster2chunks = cluster_infomap(self._graph)
 
-        return node2cluster, cluster2node
+        # node2cluster = {
+        #     self.get_node(node_id): cluster
+        #     for node_id, cluster in chunk2clusters.items()
+        # }
+        # cluster2node = {
+        #     cluster: [self.get_node(node_id) for node_id in node_ids]
+        #     for cluster, node_ids in cluster2chunks.items()
+        # }
+
+        return chunk2clusters, cluster2chunks
 
     def _chunk_short_name(self, chunk_node: BaseNode, i: int) -> str:
         # class_func = self._get_classes_and_funcs(

@@ -30,8 +30,7 @@ class RepoFs:
 
     # TODO: need to account for relative paths
     # we miss the following case:
-    # - import a => will match any file in the repo that ends with a
-    # TODO: we need to figure out the root path of the repository import namespace
+    # - import a => will match any file in the repo that ends with "a"
     def match_file(self, ns_path: Path) -> Path:
         """
         Given a file abc/xyz, check if it exists in all_paths
@@ -41,24 +40,12 @@ class RepoFs:
         for path in self._all_paths:
             path_name = path.name.replace(SRC_EXT, "")
             match_path = list(path.parts[-len(ns_path.parts) : -1]) + [path_name]
-            # print(
-            #     "Matching: ",
-            #     match_path,
-            #     list(ns_path.parts),
-            # )
 
             if match_path == list(ns_path.parts):
                 if path.suffix == SRC_EXT:
                     return path.resolve()
                 elif path.is_dir():
                     return (path / "__init__.py").resolve()
-
-            # elif path.match(f"**/{ns_path}"):
-            #     if LANGUAGE == "python":
-            #         if path.is_dir():
-            #             return (path / "__init__.py").resolve()
-
-            #     return path.resolve()
 
         return None
 

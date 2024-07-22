@@ -1,11 +1,16 @@
 import networkx as nx
 import leidenalg as la
 import igraph as ig
+from infomap import Infomap
 
 from collections import defaultdict
 
+from logging import getLogger
 
-def cluster(digraph: nx.DiGraph):
+logger = getLogger(__name__)
+
+
+def cluster_leiden(digraph: nx.DiGraph):
     # Convert NetworkX DiGraph to igraph Graph
     nodes = list(digraph.nodes())
     edges = list(digraph.edges())
@@ -30,13 +35,42 @@ def cluster(digraph: nx.DiGraph):
     partition = la.find_partition(ig_graph, la.ModularityVertexPartition)
 
     # Extract the clusters using original node IDs
-    chunk2clusters = {}
-    cluster2chunks = defaultdict(list)
+    node2clusters = {}
+    cluster2nodes = defaultdict(list)
 
     for idx, cluster in enumerate(partition):
         for node in cluster:
             original_node_id = ig_graph.vs[node]["name"]
-            chunk2clusters[original_node_id] = idx
-            cluster2chunks[idx].append(original_node_id)
+            node2clusters[original_node_id] = idx
+            cluster2nodes[idx].append(original_node_id)
 
-    return chunk2clusters, cluster2chunks
+    return node2clusters, cluster2nodes
+
+
+def cluster_infomap(digraph: nx.DiGraph):
+    # Initialize Infomap
+    infomap = Infomap("--two-level")
+
+    # Create a mapping from NetworkX node IDs to integer IDs
+    node_id_map = {node: idx for idx, node in enumerate(digraph.nodes())}
+    reverse_node_id_map = {idx: node for node, idx in node_id_map.items()}
+
+    # Add nodes and edges to Infomap using integer IDs
+    for edge in digraph.edges():
+        infomap.addLink(node_id_map[edge[0]], node_id_map[edge[1]])
+
+    # Run Infomap clustering
+    infomap.run()
+
+    # Extract the clusters using original node IDs
+    node2clusters = {}
+    cluster2nodes = defaultdict(list)
+
+    for node in infomap.iterTree():
+        if node.isLeaf:
+            original_node_id = reverse_node_id_map[node.physicalId]
+
+            node2clusters[original_node_id] = node.moduleIndex()
+            cluster2nodes[node.moduleIndex()].append(original_node_id)
+
+    return node2clusters, cluster2nodes

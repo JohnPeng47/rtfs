@@ -102,7 +102,7 @@ class EpicSplitter(NodeParser):
         self,
         chunk_size: int = 750,
         min_chunk_size: int = 100,
-        max_chunk_size: int = 1500,
+        max_chunk_size: int = 8000,
         hard_token_limit: int = 6000,
         max_chunks: int = 100,
         include_metadata: bool = True,
@@ -275,6 +275,13 @@ class EpicSplitter(NodeParser):
                 ignoring_comment = False
 
             if (
+                # SPLIT_BLOCK_TYPES = [
+                #   CodeBlockType.FUNCTION,
+                #   CodeBlockType.CLASS,
+                #   CodeBlockType.TEST_SUITE,
+                #   CodeBlockType.TEST_CASE,
+                #   CodeBlockType.MODULE,
+                # ]
                 child.type in SPLIT_BLOCK_TYPES
                 and child.sum_tokens() > self.min_chunk_size
             ) or parent_tokens + child.sum_tokens() > self.max_chunk_size:

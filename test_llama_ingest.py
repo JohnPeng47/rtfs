@@ -13,15 +13,11 @@ from scope_graph.moatless.settings import IndexSettings
 from scope_graph.chunk_resolution.chunk_graph import ChunkGraph
 
 
-JSON_GRAPH_FILE = "graph.json"
+GRAPH_FOLDER = "graphs"
 
 
 def ingest(repo_path: str) -> ChunkGraph:
     def file_metadata_func(file_path: str) -> Dict:
-        file_path = file_path.replace(repo_path, "")
-        if file_path.startswith("/"):
-            file_path = file_path[1:]
-
         test_patterns = [
             "**/test/**",
             "**/tests/**",
@@ -67,6 +63,31 @@ def ingest(repo_path: str) -> ChunkGraph:
     return chunk_graph
 
 
+def main(repo_path, saved_graph_path):
+    import time
+
+    start_time = time.time()
+
+    if load:
+        with open(saved_graph_path, "r") as f:
+            graph_dict = json.loads(f.read())
+            cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
+
+            chunk2cluster, cluster2chunk = cg.cluster()
+            print(json.dumps(chunk2cluster, indent=4))
+
+            print(f"Execution time: {time.time() - start_time:.2f} seconds")
+            exit()
+
+    cg = ingest(repo_path)
+    if save:
+        graph_dict = nx.node_link_data(cg._graph)
+        with open(saved_graph_path, "w") as f:
+            f.write(json.dumps(graph_dict))
+
+    print(f"Execution time: {time.time() - start_time:.2f} seconds")
+
+
 if __name__ == "__main__":
     import argparse
     import logging
@@ -74,6 +95,7 @@ if __name__ == "__main__":
     log_level = logging.INFO
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("repo_path", help="Path to the repository to ingest")
     parser.add_argument(
         "-d",
         "--debug",
@@ -89,26 +111,18 @@ if __name__ == "__main__":
         "--load", help="Load the output from cluster.json", action="store_true"
     )
 
-    repo_path = "tests/repos/cowboy-server"
     args = parser.parse_args()
+    repo_path = args.repo_path
+    if not os.path.exists(repo_path) or not os.path.isdir(repo_path):
+        print(f"Path {repo_path} does not exist or is not directory")
+        exit()
+
     save = args.save
     load = args.load
     if args.loglevel:
         log_level = args.loglevel
 
     logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
-    if load:
-        with open(JSON_GRAPH_FILE, "r") as f:
-            graph_dict = json.loads(f.read())
-            cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
-            chunk2cluster, cluster2chunk = cg.cluster()
-            print(json.dumps(chunk2cluster, indent=4))
-
-            exit()
-
-    cg = ingest(repo_path)
-    if save:
-        graph_dict = nx.node_link_data(cg._graph)
-        with open(JSON_GRAPH_FILE, "w") as f:
-            f.write(json.dumps(graph_dict))
+    saved_graph_path = os.path.join(GRAPH_FOLDER, "chunk_graph.json")
+    main(repo_path, saved_graph_path)

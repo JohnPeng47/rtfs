@@ -3,7 +3,7 @@ LANGUAGE = "python"
 PYTHONTS_LIB = "scope_graph/languages/python/libs/my-python.so"
 PYTHON_SCM = "scope_graph/languages/python/python.scm"
 
-FILE_GLOB_ENDING = {"python": "*.py"}
+FILE_GLOB_ENDING = {"python": ".py"}
 
 SUPPORTED_LANGS = {"python": "python"}
 

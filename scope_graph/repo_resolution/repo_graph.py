@@ -39,6 +39,7 @@ class RepoGraph:
         self.fs = RepoFs(path)
         self._graph = DiGraph()
         self.scopes_map: Dict[Path, ScopeGraph] = self._construct_scopes(self.fs)
+
         self._imports: Dict[Path, List[LocalImport]] = {}
 
         # FOR DEBUGGING
@@ -121,7 +122,8 @@ class RepoGraph:
     def get_export_refs(self, ref_node_id: RepoNodeID) -> List[RepoNodeID]:
         return [v for u, v in self._graph.edges(ref_node_id) if u == ref_node_id]
 
-    # Python impl
+    # TODO: make this language dependent function implemented outside of
+    # repo_graph
     def map_local_to_exports(
         self, path: Path, imports: List[LocalImport]
     ) -> List[Tuple[LocalImport, str, ScopeID, Path]]:
@@ -134,6 +136,7 @@ class RepoGraph:
         for imp in imports:
             export_file = self.fs.match_file(imp.namespace.to_path())
             if export_file:
+                # TODO: handle __init__.py case
                 if "__init__.py" in str(export_file):
                     imports = self._imports[path]
                     print("Skipping: ", export_file)

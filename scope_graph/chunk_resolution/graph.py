@@ -22,6 +22,10 @@ class ChunkNode(Node):
     metadata: ChunkMetadata
     scope_ids: List[int]
     content: str
+    community: Optional[int] = None
+
+    def set_community(self, community: int):
+        self.community = community
 
     def __hash__(self):
         return hash(self.id + "".join(self.metadata.span_ids))
