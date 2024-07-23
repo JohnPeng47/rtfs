@@ -3,6 +3,7 @@ from typing import List, Optional
 from pydantic.dataclasses import dataclass
 
 from scope_graph.scope_resolution.graph import Node
+from scope_graph.moatless.epic_split import CodeNode
 
 
 @dataclass
@@ -15,6 +16,7 @@ class ChunkMetadata:
     span_ids: List[str]
     start_line: int
     end_line: int
+    community: Optional[int] = None
 
 
 class ChunkNode(Node):
@@ -22,16 +24,23 @@ class ChunkNode(Node):
     metadata: ChunkMetadata
     scope_ids: List[int]
     content: str
-    community: Optional[int] = None
 
     def set_community(self, community: int):
-        self.community = community
+        self.metadata.community = community
 
     def __hash__(self):
         return hash(self.id + "".join(self.metadata.span_ids))
 
     def __str__(self):
         return f"{self.id}"
+
+    def to_node(self):
+        return CodeNode(
+            id=self.id,
+            text=self.content,
+            metadata=self.metadata.__dict__,
+            content=self.content,
+        )
 
 
 class EdgeKind(str, Enum):

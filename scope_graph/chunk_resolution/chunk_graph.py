@@ -96,6 +96,16 @@ class ChunkGraph:
 
         return cls(repo_path, cg)
 
+    def to_nodes(self, cluster: bool = True):
+        if cluster:
+            chunk2clusters, cluster2chunks = self.cluster()
+            for cluster, chunks in cluster2chunks.items():
+                for node in chunks:
+                    # create a new node representing the cluster
+                    node.set_community(chunk2clusters[node.id])
+
+        return self.get_all_nodes()
+
     def get_node(self, node_id: str) -> ChunkNode:
         data = self._graph._node[node_id]
 
@@ -116,14 +126,12 @@ class ChunkGraph:
     def update_node(self, chunk_node: ChunkNode):
         self._graph.add_node(chunk_node)
 
-    def get_scope_range(self, file: Path, range: TextRange) -> List[ScopeID]:
-        return self._repo_graph.scopes_map[file].scopes_by_range(range, overlap=True)
-
     def _get_chunk_scopes(
         self, file_path: Path, start_line: int, end_line: int
     ) -> List[ScopeID]:
-        print("Getting scopes for: ", start_line, end_line, file_path.name)
-
+        """
+        Get the list of scopes that are within range of the chunk
+        """
         range = TextRange(
             start_byte=0,
             end_byte=0,
@@ -138,23 +146,16 @@ class ChunkGraph:
         # get definitions at the most granular child scope level
         chunk_scopes = set()
 
-        scopes = scope_graph.scopes_by_range(range, overlap=True)
-        for scope in scopes:
-            child_scopes = scope_graph.child_scope_stack(scope)
-            for child_scope in child_scopes:
-                if range.contains_line(
-                    scope_graph.get_node(child_scope).range, overlap=True
-                ):
-                    chunk_scopes.add(child_scope)
-                    self._file2scope[file_path].add(child_scope)
-                #     scope2file[child_scope].append(file_path)
-                else:
-                    scope_graph = self._repo_graph.scopes_map[file_path]
-                    # print(
-                    #     "Ignored scope: ",
-                    #     child_scope,
-                    #     scope_graph.get_node(child_scope).range.line_range(),
-                    # )
+        # the smallest enclosing scope that contains the chunk
+        enclosing_scope = scope_graph.scope_by_range(range, overlap=True)
+        for child_scope in scope_graph.get_leaf_children(enclosing_scope):
+            if range.contains_line(
+                scope_graph.get_node(child_scope).range, overlap=True
+            ):
+                chunk_scopes.add(child_scope)
+                self._file2scope[file_path].add(child_scope)
+            else:
+                scope_graph = self._repo_graph.scopes_map[file_path]
 
         return list(chunk_scopes)
         # return scopes

@@ -1,4 +1,4 @@
-from networkx import DiGraph
+from networkx import DiGraph, dfs_postorder_nodes
 from typing import Dict, Optional, Iterator, List, NewType, Tuple
 from enum import Enum
 
@@ -166,17 +166,6 @@ class ScopeGraph:
             if attrs["type"] == NodeKind.SCOPE
         ]
 
-    def scopes_by_range(self, range: TextRange, overlap=False) -> List[ScopeID]:
-        """
-        Get all scopes that contain the given range
-        """
-        return [
-            u
-            for u, attrs in self._graph.nodes(data=True)
-            if attrs["type"] == NodeKind.SCOPE
-            and self.get_node(u).range.contains_line(range, overlap=overlap)
-        ]
-
     def imports(self, start: int) -> List[int]:
         """
         Get all imports in the scope
@@ -269,6 +258,15 @@ class ScopeGraph:
             stack += self.child_scope_stack(child)
 
         return stack
+
+    def get_leaf_children(self, start: ScopeID) -> Iterator[ScopeID]:
+        """
+        Finds all the leaf children reachable from the given scope
+        """
+        # Use DFS to find all reachable nodes
+        for node in dfs_postorder_nodes(self._graph, start):
+            if self._graph.out_degree(node) == 0:  # for directed graphs
+                yield node
 
     def parent_scope_stack(self, start: ScopeID):
         """
