@@ -4,7 +4,8 @@ from llama_index.core.schema import BaseNode
 from typing import List, Tuple, Dict
 import os
 
-from scope_graph.scope_resolution.graph import ScopeGraph, ScopeID
+from scope_graph.scope_resolution.graph import ScopeGraph
+from scope_graph.scope_resolution.graph_types import ScopeID
 from scope_graph.repo_resolution.repo_graph import RepoGraph, RepoNodeID, repo_node_id
 from scope_graph.utils import TextRange
 from scope_graph.fs import RepoFs
@@ -147,7 +148,7 @@ class ChunkGraph:
         chunk_scopes = set()
 
         # the smallest enclosing scope that contains the chunk
-        enclosing_scope = scope_graph.scope_by_range(range, overlap=True)
+        enclosing_scope = scope_graph.scope_by_range(range)
         for child_scope in scope_graph.get_leaf_children(enclosing_scope):
             if range.contains_line(
                 scope_graph.get_node(child_scope).range, overlap=True

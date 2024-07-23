@@ -1,4 +1,6 @@
-from scope_graph.scope_resolution.graph import ScopeID, Node
+from scope_graph.scope_resolution.graph import Node
+from scope_graph.scope_resolution.graph_types import ScopeID
+
 from enum import Enum
 from typing import NewType
 import os

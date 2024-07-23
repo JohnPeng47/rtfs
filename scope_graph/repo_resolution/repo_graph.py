@@ -3,7 +3,8 @@ from pathlib import Path
 from networkx import DiGraph
 
 from scope_graph.fs import RepoFs
-from scope_graph.scope_resolution.graph import ScopeGraph, ScopeID
+from scope_graph.scope_resolution.graph import ScopeGraph
+from scope_graph.scope_resolution.graph_types import ScopeID
 from scope_graph.build_scopes import build_scope_graph
 from scope_graph.scope_resolution import LocalImportStmt
 from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
@@ -50,12 +51,14 @@ class RepoGraph:
         # parse calls and parameters here
         # self.calls = self.construct_calls(self.scopes_map, fs)
 
+        # TODO: put everything into a function that can be measured with TQDM
         # construct imports
         for path, g in self.scopes_map.items():
             self._imports[path] = self._construct_import(g, path, self.fs)
             self._missing_import_refs[path] = [
                 str(imp.namespace) for imp in self._imports[path]
             ]
+            print(path, g.to_str())
 
         # map import ref to export scope
         for path, imports in self._imports.items():

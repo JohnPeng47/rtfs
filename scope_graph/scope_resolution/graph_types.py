@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, NewType
 from enum import Enum
 
 from scope_graph.graph import Node
@@ -26,3 +26,6 @@ class ScopeNode(Node):
     type: NodeKind
     name: Optional[str] = ""
     data: Optional[Dict] = {}
+
+
+ScopeID = NewType("ScopeID", int)

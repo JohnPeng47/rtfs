@@ -1,6 +1,7 @@
 from networkx import DiGraph, dfs_postorder_nodes
 from typing import Dict, Optional, Iterator, List, NewType, Tuple
 from enum import Enum
+from collections import defaultdict
 
 from scope_graph.graph import Node
 from scope_graph.utils import TextRange
@@ -9,10 +10,8 @@ from .imports import LocalImportStmt
 from .definition import LocalDef
 from .reference import Reference
 from .scope import LocalScope, ScopeStack
-from .graph_types import NodeKind, EdgeKind, ScopeNode
-
-
-ScopeID = NewType("ScopeID", int)
+from .graph_types import NodeKind, EdgeKind, ScopeNode, ScopeID
+from .interval_tree import IntervalGraph
 
 
 class ScopeGraph:
@@ -23,6 +22,9 @@ class ScopeGraph:
 
         self.root_idx = self.add_node(ScopeNode(range=range, type=NodeKind.SCOPE))
 
+        # use this to faster resolve range -> scope queries
+        self._ig = IntervalGraph(range, self.root_idx)
+
     def insert_local_scope(self, new: LocalScope):
         """
         Insert local scope to smallest enclosing parent scope
@@ -32,6 +34,7 @@ class ScopeGraph:
             new_node = ScopeNode(range=new.range, type=NodeKind.SCOPE)
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ScopeToScope)
+            self._ig.add_scope(new.range, new_id)
 
     def insert_local_import(self, new: LocalImportStmt):
         """
@@ -116,19 +119,9 @@ class ScopeGraph:
                 ]:
                     def_node = self.get_node(local_def)
                     if def_node.type == NodeKind.DEFINITION:
-                        # print("New: ", new.name, "Def: ", def_node.name)
-
-                        # ensure that we add the first definition in the nearest ancestor scope
-                        if new.name == def_node.name and new.name not in [
-                            name for id, name in possible_defs
-                        ]:
-                            # if (
-                            #     def_node.symbol_id is None
-                            #     or new.symbol_id is None
-                            #     or def_node.symbol_id.namespace_idx
-                            #     == new.symbol_id.namespace_idx
-                            # ):
+                        if new.name == def_node.name:
                             possible_defs.append((local_def, def_node.name))
+                            break  # ensure that we add the first definition in the nearest ancestor scope
 
                 # find candidate imports in each scope
                 # TODO: fix this for new import names format
@@ -238,8 +231,10 @@ class ScopeGraph:
         """
         Returns the smallest child
         """
+        print(f"Finding scope by range: {range.line_range()}")
         node = self.get_node(start)
-        if node.range.contains(range):
+        if node.range.contains_line(range):
+            print(f"Scope {node.range.line_range()} contains {range.line_range()}")
             for child_id, attrs in [
                 (src, attrs)
                 for src, dst, attrs in self._graph.in_edges(start, data=True)
@@ -250,6 +245,16 @@ class ScopeGraph:
             return start
 
         return None
+
+    # def scope_by_range(self, range: TextRange, start: ScopeID) -> Optional[ScopeID]:
+    #     """
+    #     Returns the smallest child scope that contains the given range
+    #     """
+    #     resolved_scope_id = self._ig.contains(range, overlap=False)
+    #     if resolved_scope_id is not None:
+    #         return resolved_scope_id
+
+    #     return start
 
     def child_scope_stack(self, start: ScopeID) -> List[ScopeID]:
         stack = self.child_scopes(start)
