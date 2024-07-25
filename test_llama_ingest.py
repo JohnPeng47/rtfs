@@ -5,6 +5,7 @@ import mimetypes
 import fnmatch
 import networkx as nx
 import json
+from collections import Counter
 
 from llama_index.core import SimpleDirectoryReader
 from scope_graph.moatless.epic_split import EpicSplitter
@@ -63,15 +64,15 @@ def ingest(repo_path: str) -> ChunkGraph:
     return chunk_graph
 
 
-def get_node2cluster(chunk2clusters):
+def get_node2cluster(chunk2clusters, cg):
     return {
-        self.get_node(node_id): cluster for node_id, cluster in chunk2clusters.items()
+        cg.get_node(node_id): cluster for node_id, cluster in chunk2clusters.items()
     }
 
 
-def get_cluster2node(cluster2chunks):
+def get_cluster2node(cluster2chunks, cg):
     return {
-        cluster: [self.get_node(node_id) for node_id in node_ids]
+        cluster: [cg.get_node(node_id) for node_id in node_ids]
         for cluster, node_ids in cluster2chunks.items()
     }
 
@@ -87,7 +88,11 @@ def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
             cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
             chunk2cluster, cluster2chunk = cg.cluster()
-            print(json.dumps(chunk2cluster, indent=4))
+            counter = Counter(chunk2cluster.values())
+
+            print(cg.to_str())
+            print(counter)
+            # print(cg._repo_graph.to_str())
 
             print(f"Execution time: {time.time() - start_time:.2f} seconds")
             exit()

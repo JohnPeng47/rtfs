@@ -11,7 +11,7 @@ from scope_graph.utils import SysModules, ThirdPartyModules, TextRange
 from scope_graph.config import LANGUAGE
 
 from .imports import NameSpace, LocalImport, ModuleType, import_stmt_to_import
-from .graph_type import EdgeKind, RepoNode, RepoNodeID
+from .graph_type import EdgeKind, RepoNode, RepoNodeID, RefEdge
 
 from collections import defaultdict
 import logging
@@ -73,18 +73,12 @@ class RepoGraph:
                     # establish an edge between all refs from all local scopes to the
                     # def scope in import_file
                     for ref_scope in imp.ref_scopes:
-                        # TODO: convert this to debug
-                        if "client.py" in str(path):
-                            print(
-                                f"Adding ref: {imp.namespace.child}:{ref_scope} -> {export_file}:{def_scope}"
-                            )
-
                         # create nodes and edges
                         ref_node_id = repo_node_id(path, ref_scope)
                         ref_node = self.get_node(ref_node_id)
                         if not ref_node:
                             self.total_scopes.add(ref_node_id)
-                            ref_node = self.create_node(ref_node_id)
+                            self.add_node(ref_node_id)
 
                         self._missing_import_refs[path] = [
                             ref
@@ -97,28 +91,42 @@ class RepoGraph:
                         imp_node = self.get_node(imp_node_id)
                         if not imp_node:
                             self.total_scopes.add(ref_node_id)
-                            self.create_node(imp_node_id)
+                            self.add_node(imp_node_id)
 
-                        self._graph.add_edge(
+                        self.add_edge(
                             ref_node_id,
                             imp_node_id,
-                            kind=EdgeKind.ImportToExport,
+                            name,
+                            str(imp.namespace),
                         )
 
     def get_node(self, node_id: RepoNodeID) -> RepoNode:
         node = self._graph.nodes.get(node_id, None)
-        if node:
-            return RepoNode(repo_id=node_id)
+        if not node:
+            return None
 
-        return None
+        return RepoNode(**node)
 
-    def create_node(self, node_id: RepoNodeID):
+    def add_node(self, node_id: RepoNodeID):
         node = RepoNode(repo_id=node_id)
+        self._graph.add_node(node.repo_id, **node.dict())
 
-        self._graph.add_node(node.repo_id, name=node.name)
-        return node
+    def add_edge(
+        self, ref_node_id: RepoNodeID, def_node_id: RepoNodeID, ref: str, defn: str
+    ):
+        edge = RefEdge(ref=ref, defn=ref)
+        self._graph.add_edge(ref_node_id, def_node_id, **edge.dict())
 
-    def import_to_export_scope(self, ref_node_id: RepoNodeID) -> List[RepoNode]:
+    def get_outgoing_edge(
+        self, ref_node_id: RepoNodeID, exp_node_id: RepoNodeID
+    ) -> List[RefEdge]:
+        return [
+            RefEdge(**e)
+            for u, v, e in self._graph.out_edges(ref_node_id, data=True)
+            if v == exp_node_id
+        ]
+
+    def import_to_export_scope(self, ref_node_id: RepoNodeID, ref: str) -> List[RepoNode]:
         """
         Returns the export (def) scopes that are tied to the import (ref) scope
         """
@@ -126,7 +134,7 @@ class RepoGraph:
         return [
             self.get_node(v)
             for _, v, attrs in self._graph.edges(ref_node_id, data=True)
-            if attrs["kind"] == EdgeKind.ImportToExport
+            if attrs["type"] == EdgeKind.ImportToExport and attrs["ref"] == ref
         ]
 
     # TODO: make this language dependent function implemented outside of
@@ -165,9 +173,10 @@ class RepoGraph:
         scope_map = {}
         for path, file_content in fs.get_files_content():
             # index by full path
-            scope_map[path.resolve()] = build_scope_graph(
-                file_content, language=LANGUAGE
-            )
+            sg = build_scope_graph(file_content, language=LANGUAGE)
+            scope_map[path.resolve()] = sg
+
+            # print(f"File : {path.name}\n", sg.to_str())
 
         return scope_map
 

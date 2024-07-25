@@ -19,7 +19,6 @@ from scope_graph.moatless.codeblocks import (
 from scope_graph.moatless.parser.python import PythonParser
 from scope_graph.moatless.settings import CommentStrategy
 
-
 class CodeNode(TextNode):
 
     # Skip start and end line in metadata to try to lower the number of changes and triggers of new embeddings.

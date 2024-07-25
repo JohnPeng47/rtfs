@@ -11,7 +11,7 @@ from scope_graph.repo_resolution.repo_graph import RepoGraph, RepoNodeID, repo_n
 from scope_graph.fs import RepoFs
 from scope_graph.utils import TextRange
 
-from .graph import ChunkMetadata, ChunkNode, EdgeKind
+from .graph import ChunkMetadata, ChunkNode, EdgeKind, ImportEdge
 from .cluster import cluster_leiden, cluster_infomap
 
 import logging
@@ -57,7 +57,6 @@ class ChunkGraph:
                 content=chunk.get_content(),
             )
             cg.add_node(chunk_node)
-
             cg._chunkmap[Path(metadata.file_path)].append(chunk_node)
 
         # shouldnt really happen but ...
@@ -74,7 +73,6 @@ class ChunkGraph:
             all_scopes = set(all_scopes)
 
             unresolved = all_scopes - scopes
-            print("Missing scopes: ", unresolved, " in ", f)
 
         return cg
 
@@ -107,6 +105,9 @@ class ChunkGraph:
     def get_all_nodes(self) -> List[ChunkNode]:
         return [self.get_node(n) for n in self._graph.nodes]
 
+    def add_edge(self, n1, n2, edge: ImportEdge):
+        self._graph.add_edge(n1, n2, **edge.dict())
+
     def add_node(self, chunk_node: ChunkNode):
         id = chunk_node.id
         self._graph.add_node(id, **chunk_node.dict())
@@ -119,36 +120,39 @@ class ChunkGraph:
         Build the import to export mapping for a chunk
         need to do: import (chunk -> range -> scope) -> export (scope -> range -> chunk)
         """
-        file_path = Path(chunk_node.metadata.file_path)
-        scope_graph = self._repo_graph.scopes_map[file_path]
+        src_path = Path(chunk_node.metadata.file_path)
+        scope_graph = self._repo_graph.scopes_map[src_path]
         chunk_refs = capture_refs(chunk_node.content.encode())
 
         for ref in chunk_refs:
+            ref.range.add_line_offset(chunk_node.metadata.start_line)
             # range -> scope
             ref_scope = scope_graph.scope_by_range(ref.range)
             # scope (import) -> scope (export)
             export_scopes = self._repo_graph.import_to_export_scope(
-                repo_node_id(file_path, ref_scope)
+                repo_node_id(src_path, ref_scope), ref.name
             )
-
-            print("Export scope len: ", len(export_scopes))
-
             # scope -> range -> chunk
             # decision:
             # 1. can resolve range here using the scope
             # 2. can resolve range when RepoNode is constructed
             # Favor 1. since we can use repo_graph for both scope->range and range->scope
-            for export_scope, export_sg in [
-                (node.scope, self._repo_graph.scopes_map[Path(node.file_path)])
+            for export_file, export_scope, export_sg in [
+                (
+                    node.file_path,
+                    node.scope,
+                    self._repo_graph.scopes_map[Path(node.file_path)],
+                )
                 for node in export_scopes
             ]:
                 export_range = export_sg.range_by_scope(export_scope)
-                dst_chunk = self.find_chunk(file_path, export_range)
+                dst_chunk = self.find_chunk(Path(export_file), export_range)
+
                 if dst_chunk:
-                    print("Adding edge: ", ref_scope, " -> ", dst_chunk.id)
-                    self._graph.add_edge(
-                        chunk_node.id, dst_chunk.id, kind=EdgeKind.ImportToExport
-                    )
+                    print("Found chunk: ", dst_chunk.id, "with ref: ", ref.name)
+
+                    edge = ImportEdge(ref=ref.name, kind=EdgeKind.ImportToExport)
+                    self.add_edge(chunk_node.id, dst_chunk.id, edge)
 
     # TODO: should really use IntervalGraph here but chunks are small enough
     def find_chunk(self, file_path: Path, range: TextRange):
@@ -157,18 +161,10 @@ class ChunkGraph:
         """
         chunks = self._chunkmap[file_path]
         for chunk in chunks:
-            if chunk.range.contains_line(range):
+            if chunk.range.contains_line(range, overlap=True):
                 return chunk
 
         return None
-
-    def to_str(self):
-        repr = ""
-        for u, v, _ in self._graph.edges(data=True):
-            u_node = self.get_node(u)
-            v_node = self.get_node(v)
-            repr += f"{u_node} -> {v_node}\n"
-        return repr
 
     def cluster(
         self, alg: str = "infomap"
@@ -209,6 +205,17 @@ class ChunkGraph:
     ##### For debugging ####!SECTION
     def nodes(self):
         return self._graph.nodes(data=True)
+
+    def to_str(self):
+        repr = ""
+        for u, v, attrs in self._graph.edges(data=True):
+            ref = attrs["ref"]
+            u_node = self.get_node(u)
+            v_node = self.get_node(v)
+            repr += (
+                f"{u_node.metadata.file_name} --{ref}--> {v_node.metadata.file_name}\n"
+            )
+        return repr
 
     # def get_import_refs(
     #     self, unresolved_refs: set[str], file_path: Path, scopes: List[ScopeID]

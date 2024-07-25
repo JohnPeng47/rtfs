@@ -1,6 +1,5 @@
-from scope_graph.scope_resolution.graph import Node
-from scope_graph.scope_resolution.graph_types import ScopeID
-
+from scope_graph.scope_resolution.graph import ScopeID
+from scope_graph.graph import Node, Edge
 from enum import Enum
 from typing import NewType
 import os
@@ -9,6 +8,11 @@ from pydantic import root_validator
 
 
 RepoNodeID = NewType("RepoNodeID", str)
+
+
+class RepoNodeType(str, Enum):
+    Ref = "Ref"
+    Def = "Def"
 
 
 class RepoNode(Node):
@@ -34,8 +38,18 @@ class RepoNode(Node):
         return values
 
     def __str__(self):
-        return f"{self.name}"
+        return f"{self.name}::{self.scope}"
 
 
 class EdgeKind(str, Enum):
     ImportToExport = "ImportToExport"
+
+
+class RepoEdge(Edge):
+    type: EdgeKind
+
+
+class RefEdge(RepoEdge):
+    type: EdgeKind = EdgeKind.ImportToExport
+    ref: str
+    defn: str

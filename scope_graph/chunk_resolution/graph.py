@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List, Optional, NewType
 from pydantic.dataclasses import dataclass
 
-from scope_graph.scope_resolution.graph import Node
+from scope_graph.graph import Node, Edge
 from scope_graph.moatless.epic_split import CodeNode
 from scope_graph.utils import TextRange
 
@@ -33,8 +33,9 @@ class ChunkNode(Node):
         return TextRange(
             start_byte=0,
             end_byte=0,
-            start_point=(self.metadata.start_line, 0),
-            end_point=(self.metadata.end_line, 0),
+            # subtract 1 to convert to 0-based to conform with TreeSitter 0 based indexing
+            start_point=(self.metadata.start_line - 1, 0),
+            end_point=(self.metadata.end_line - 1, 0),
         )
 
     def set_community(self, community: int):
@@ -57,3 +58,8 @@ class ChunkNode(Node):
 
 class EdgeKind(str, Enum):
     ImportToExport = "ImportToExport"
+
+
+class ImportEdge(Edge):
+    kind: EdgeKind
+    ref: str
