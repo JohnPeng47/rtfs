@@ -4,8 +4,9 @@ from scope_graph.config import PYTHON_SCM, PYTHONTS_LIB
 
 
 class PythonParse:
+
     @classmethod
-    def _build_query(cls, file_content: bytearray):
+    def _build_query(cls, file_content: bytearray, query_file: str):
         query_file = open(PYTHON_SCM, "rb").read()
 
         PY_LANGUAGE = Language(tspython.language())

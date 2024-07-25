@@ -39,6 +39,11 @@ class TextRange(BaseModel):
         return self.start_point.row, self.end_point.row
 
     def contains(self, range: "TextRange"):
+        if not range.start_byte or not self.end_byte:
+            raise ValueError(
+                "Byte range is not set, did you mean to call contains_line?"
+            )
+
         return range.start_byte >= self.start_byte and range.end_byte <= self.end_byte
 
     def contains_line(self, range: "TextRange", overlap=False):

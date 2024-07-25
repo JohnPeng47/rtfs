@@ -83,8 +83,6 @@ def import_stmt_to_import(
         else:
             module_type = ModuleType.UNKNOWN
 
-        # logger.debug(f"Import: {ns} {module_type} {import_path}")
-
         # resolve refs to this import
         ref_scopes = []
         for scope in g.scopes():
@@ -92,8 +90,6 @@ def import_stmt_to_import(
                 ref_node = g.get_node(ref)
                 if ref_node.name == ns.child:
                     ref_scopes.append(scope)
-
-        # logger.debug("Ref scopes: ", ref_scopes)
 
         imports.append(
             LocalImport(

@@ -48,9 +48,6 @@ class RepoGraph:
         self._resolved_import_refs: Dict[Path, List[str]] = defaultdict(list)
         self.total_scopes = set()
 
-        # parse calls and parameters here
-        # self.calls = self.construct_calls(self.scopes_map, fs)
-
         # TODO: put everything into a function that can be measured with TQDM
         # construct imports
         for path, g in self.scopes_map.items():
@@ -58,7 +55,6 @@ class RepoGraph:
             self._missing_import_refs[path] = [
                 str(imp.namespace) for imp in self._imports[path]
             ]
-            print(path, g.to_str())
 
         # map import ref to export scope
         for path, imports in self._imports.items():
@@ -122,8 +118,16 @@ class RepoGraph:
         self._graph.add_node(node.repo_id, name=node.name)
         return node
 
-    def get_export_refs(self, ref_node_id: RepoNodeID) -> List[RepoNodeID]:
-        return [v for u, v in self._graph.edges(ref_node_id) if u == ref_node_id]
+    def import_to_export_scope(self, ref_node_id: RepoNodeID) -> List[RepoNode]:
+        """
+        Returns the export (def) scopes that are tied to the import (ref) scope
+        """
+
+        return [
+            self.get_node(v)
+            for _, v, attrs in self._graph.edges(ref_node_id, data=True)
+            if attrs["kind"] == EdgeKind.ImportToExport
+        ]
 
     # TODO: make this language dependent function implemented outside of
     # repo_graph
@@ -142,7 +146,6 @@ class RepoGraph:
                 # TODO: handle __init__.py case
                 if "__init__.py" in str(export_file):
                     imports = self._imports[path]
-                    print("Skipping: ", export_file)
                     pass
                 else:
                     # match with exports

@@ -1,6 +1,4 @@
-from pydantic import BaseModel
 from typing import Dict, Optional, List
-from enum import Enum
 
 from scope_graph.scope_resolution import LocalScope, LocalDef, Reference, Scoping
 from scope_graph.scope_resolution.imports import (
@@ -13,36 +11,22 @@ from scope_graph.utils import TextRange
 from scope_graph.languages import LANG_PARSER
 from scope_graph.scope_resolution.graph import ScopeGraph
 
+from scope_graph.ts.capture_types import (
+    LocalDefCapture,
+    LocalRefCapture,
+    LocalImportPartCapture,
+    ImportPartType,
+)
+
+from scope_graph.config import PYTHON_SCM
 
 # TODO: make this a part of TSLangConfig
 namespaces = ["class", "function", "parameter", "variable"]
 
 
-class LocalDefCapture(BaseModel):
-    index: int
-    symbol: Optional[str]
-    scoping: Scoping
-
-
-class LocalRefCapture(BaseModel):
-    index: int
-    symbol: Optional[str]
-
-
-class ImportPartType(str, Enum):
-    MODULE = "module"
-    ALIAS = "alias"
-    NAME = "name"
-
-
-class LocalImportPartCapture(BaseModel):
-    index: int
-    part: str
-
-
 def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGraph:
     parser = LANG_PARSER[language]
-    query, root_node = parser._build_query(src_bytes)
+    query, root_node = parser._build_query(src_bytes, PYTHON_SCM)
 
     local_def_captures: List[LocalDefCapture] = []
     local_ref_captures: List[LocalRefCapture] = []
@@ -86,12 +70,13 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
                     scoping=scoping_enum,
                 )
                 local_def_captures.append(l)
-            case ["local", "reference", sym]:
-                index = i
-                symbol = sym
+            # TODO: confirm never used and delete
+            # case ["local", "reference", sym]:
+            #     index = i
+            #     symbol = sym
 
-                l = LocalRefCapture(index=index, symbol=symbol)
-                local_ref_captures.append(l)
+            #     l = LocalRefCapture(index=index, symbol=symbol)
+            #     local_ref_captures.append(l)
             case ["local", "reference"]:
                 index = i
                 symbol = None

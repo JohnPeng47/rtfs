@@ -4,11 +4,12 @@ from llama_index.core.schema import BaseNode
 from typing import List, Tuple, Dict
 import os
 
-from scope_graph.scope_resolution.graph import ScopeGraph
+# from scope_graph.scope_resolution.interval_tree import IntervalGraph
+from scope_graph.scope_resolution.capture_refs import capture_refs
 from scope_graph.scope_resolution.graph_types import ScopeID
 from scope_graph.repo_resolution.repo_graph import RepoGraph, RepoNodeID, repo_node_id
-from scope_graph.utils import TextRange
 from scope_graph.fs import RepoFs
+from scope_graph.utils import TextRange
 
 from .graph import ChunkMetadata, ChunkNode, EdgeKind
 from .cluster import cluster_leiden, cluster_infomap
@@ -26,57 +27,47 @@ class ChunkGraph:
         self._graph = g
         self._repo_graph = RepoGraph(repo_path)
         self._file2scope = defaultdict(set)
+        self._chunkmap: Dict[Path, List[ChunkNode]] = defaultdict(list)
 
+    # TODO: design decisions
+    # turn import => export mapping into a function
+    # implement tqdm for chunk by chunk processing
     @classmethod
     def from_chunks(cls, repo_path: Path, chunks: List[BaseNode]):
+        """
+        Build chunk (import) to chunk (export) mapping by associating a chunk with
+        the list of scopes, and then using the scope -> scope mapping provided in RepoGraph
+        to resolve the exports
+        """
         g = DiGraph()
         cg: ChunkGraph = cls(repo_path, g)
-
-        scope2chunk: Dict[RepoNodeID, str] = {}  # maps repo node id to chunk id
         cg._file2scope = defaultdict(set)
+
+        # used to map range to chunks
         chunk_names = set()
 
         for i, chunk in enumerate(chunks, start=1):
             metadata = ChunkMetadata(**chunk.metadata)
-            chunk_scopes = cg._get_chunk_scopes(
-                Path(metadata.file_path),
-                metadata.start_line,
-                metadata.end_line,
-            )
 
             short_name = cg._chunk_short_name(chunk, i)
             chunk_names.add(short_name)
-
-            for scope in chunk_scopes:
-                repo_id = repo_node_id(metadata.file_path, scope)
-                scope2chunk[repo_id] = short_name
-
-            cg.add_node(
-                ChunkNode(
-                    id=short_name,
-                    metadata=metadata,
-                    scope_ids=chunk_scopes,
-                    content=chunk.get_content(),
-                )
+            chunk_node = ChunkNode(
+                id=short_name,
+                metadata=metadata,
+                content=chunk.get_content(),
             )
+            cg.add_node(chunk_node)
+
+            cg._chunkmap[Path(metadata.file_path)].append(chunk_node)
 
         # shouldnt really happen but ...
         if len(chunk_names) != len(chunks):
             raise ValueError("Collision has occurred in chunk names")
 
-        # get import_chunk -> scope -> scope -> export_chunk
-        for node in cg.get_all_nodes():
-            for scope in node.scope_ids:
-                ref_ids = cg._repo_graph.get_export_refs(
-                    repo_node_id(node.metadata.file_path, scope)
-                )
-
-                if ref_ids:
-                    for exp_ref in ref_ids:
-                        chunk_id = scope2chunk[exp_ref]
-                        cg._graph.add_edge(
-                            node.id, chunk_id, kind=EdgeKind.ImportToExport
-                        )
+        # main loop to build graph
+        for chunk_node in cg.get_all_nodes():
+            # chunk -> range -> scope
+            cg.build_import_exports(chunk_node)
 
         for f, scopes in cg._file2scope.items():
             all_scopes = cg._repo_graph.scopes_map[f].scopes()
@@ -84,10 +75,6 @@ class ChunkGraph:
 
             unresolved = all_scopes - scopes
             print("Missing scopes: ", unresolved, " in ", f)
-
-        # logger.info(f"Chunk scopes: {chunk_scopes}")
-        # logger.info(f"Resolved: {resolved}")
-        # logger.info(f"Unresolved: {unresolved}")
 
         return cg
 
@@ -127,39 +114,53 @@ class ChunkGraph:
     def update_node(self, chunk_node: ChunkNode):
         self._graph.add_node(chunk_node)
 
-    def _get_chunk_scopes(
-        self, file_path: Path, start_line: int, end_line: int
-    ) -> List[ScopeID]:
+    def build_import_exports(self, chunk_node: ChunkNode):
         """
-        Get the list of scopes that are within range of the chunk
+        Build the import to export mapping for a chunk
+        need to do: import (chunk -> range -> scope) -> export (scope -> range -> chunk)
         """
-        range = TextRange(
-            start_byte=0,
-            end_byte=0,
-            start_point=(start_line, 0),
-            end_point=(end_line, 0),
-        )
-
+        file_path = Path(chunk_node.metadata.file_path)
         scope_graph = self._repo_graph.scopes_map[file_path]
+        chunk_refs = capture_refs(chunk_node.content.encode())
 
-        # TODO: note that we have potentially overlapping parent/child scopes here
-        # alternative is to just return scopes, but this way we can
-        # get definitions at the most granular child scope level
-        chunk_scopes = set()
+        for ref in chunk_refs:
+            # range -> scope
+            ref_scope = scope_graph.scope_by_range(ref.range)
+            # scope (import) -> scope (export)
+            export_scopes = self._repo_graph.import_to_export_scope(
+                repo_node_id(file_path, ref_scope)
+            )
 
-        # the smallest enclosing scope that contains the chunk
-        enclosing_scope = scope_graph.scope_by_range(range)
-        for child_scope in scope_graph.get_leaf_children(enclosing_scope):
-            if range.contains_line(
-                scope_graph.get_node(child_scope).range, overlap=True
-            ):
-                chunk_scopes.add(child_scope)
-                self._file2scope[file_path].add(child_scope)
-            else:
-                scope_graph = self._repo_graph.scopes_map[file_path]
+            print("Export scope len: ", len(export_scopes))
 
-        return list(chunk_scopes)
-        # return scopes
+            # scope -> range -> chunk
+            # decision:
+            # 1. can resolve range here using the scope
+            # 2. can resolve range when RepoNode is constructed
+            # Favor 1. since we can use repo_graph for both scope->range and range->scope
+            for export_scope, export_sg in [
+                (node.scope, self._repo_graph.scopes_map[Path(node.file_path)])
+                for node in export_scopes
+            ]:
+                export_range = export_sg.range_by_scope(export_scope)
+                dst_chunk = self.find_chunk(file_path, export_range)
+                if dst_chunk:
+                    print("Adding edge: ", ref_scope, " -> ", dst_chunk.id)
+                    self._graph.add_edge(
+                        chunk_node.id, dst_chunk.id, kind=EdgeKind.ImportToExport
+                    )
+
+    # TODO: should really use IntervalGraph here but chunks are small enough
+    def find_chunk(self, file_path: Path, range: TextRange):
+        """
+        Find a chunk given a range
+        """
+        chunks = self._chunkmap[file_path]
+        for chunk in chunks:
+            if chunk.range.contains_line(range):
+                return chunk
+
+        return None
 
     def to_str(self):
         repr = ""
@@ -182,15 +183,6 @@ class ChunkGraph:
             chunk2clusters, cluster2chunks = cluster_leiden(self._graph)
         elif alg == "infomap":
             chunk2clusters, cluster2chunks = cluster_infomap(self._graph)
-
-        # node2cluster = {
-        #     self.get_node(node_id): cluster
-        #     for node_id, cluster in chunk2clusters.items()
-        # }
-        # cluster2node = {
-        #     cluster: [self.get_node(node_id) for node_id in node_ids]
-        #     for cluster, node_ids in cluster2chunks.items()
-        # }
 
         return chunk2clusters, cluster2chunks
 

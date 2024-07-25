@@ -10,7 +10,7 @@ class Reference:
     symbol_id: Optional[SymbolId]
 
     def __init__(
-        self, range: TextRange, buffer: bytearray, symbol_id: Optional[SymbolId]
+        self, range: TextRange, buffer: bytearray, symbol_id: Optional[SymbolId] = None
     ) -> "Reference":
         self.range = range
         self.symbol_id = symbol_id

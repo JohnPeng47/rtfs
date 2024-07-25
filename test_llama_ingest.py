@@ -63,7 +63,20 @@ def ingest(repo_path: str) -> ChunkGraph:
     return chunk_graph
 
 
-def main(repo_path, saved_graph_path):
+def get_node2cluster(chunk2clusters):
+    return {
+        self.get_node(node_id): cluster for node_id, cluster in chunk2clusters.items()
+    }
+
+
+def get_cluster2node(cluster2chunks):
+    return {
+        cluster: [self.get_node(node_id) for node_id in node_ids]
+        for cluster, node_ids in cluster2chunks.items()
+    }
+
+
+def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
     import time
 
     start_time = time.time()
@@ -81,6 +94,7 @@ def main(repo_path, saved_graph_path):
 
     cg = ingest(repo_path)
     if save:
+        print("Saving graph to disk")
         graph_dict = nx.node_link_data(cg._graph)
         with open(saved_graph_path, "w") as f:
             f.write(json.dumps(graph_dict))
@@ -124,5 +138,5 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
 
-    saved_graph_path = os.path.join(GRAPH_FOLDER, "chunk_graph.json")
-    main(repo_path, saved_graph_path)
+    saved_graph_path = os.path.join(GRAPH_FOLDER, Path(repo_path).name + ".json")
+    main(repo_path, saved_graph_path, load=load, save=save)

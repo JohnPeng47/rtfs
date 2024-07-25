@@ -2,6 +2,7 @@ LANGUAGE = "python"
 
 PYTHONTS_LIB = "scope_graph/languages/python/libs/my-python.so"
 PYTHON_SCM = "scope_graph/languages/python/python.scm"
+PYTHON_REFS = "scope_graph/languages/python/python_refs.scm"
 
 FILE_GLOB_ENDING = {"python": ".py"}
 

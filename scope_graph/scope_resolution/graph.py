@@ -20,7 +20,11 @@ class ScopeGraph:
         self._graph = DiGraph()
         self._node_counter = 0
 
-        self.root_idx = self.add_node(ScopeNode(range=range, type=NodeKind.SCOPE))
+        self.scope2range: Dict[ScopeID, TextRange] = {}
+
+        root_scope = ScopeNode(range=range, type=NodeKind.SCOPE)
+        self.root_idx = self.add_node(root_scope)
+        self.scope2range[self.root_idx] = range
 
         # use this to faster resolve range -> scope queries
         self._ig = IntervalGraph(range, self.root_idx)
@@ -35,6 +39,8 @@ class ScopeGraph:
             new_id = self.add_node(new_node)
             self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ScopeToScope)
             self._ig.add_scope(new.range, new_id)
+
+            self.scope2range[new_id] = new.range
 
     def insert_local_import(self, new: LocalImportStmt):
         """
@@ -227,34 +233,45 @@ class ScopeGraph:
                     return dst
         return None
 
-    def scope_by_range(self, range: TextRange, start: ScopeID) -> ScopeID:
-        """
-        Returns the smallest child
-        """
-        print(f"Finding scope by range: {range.line_range()}")
-        node = self.get_node(start)
-        if node.range.contains_line(range):
-            print(f"Scope {node.range.line_range()} contains {range.line_range()}")
-            for child_id, attrs in [
-                (src, attrs)
-                for src, dst, attrs in self._graph.in_edges(start, data=True)
-                if attrs["type"] == EdgeKind.ScopeToScope
-            ]:
-                if child := self.scope_by_range(range, child_id):
-                    return child
-            return start
-
-        return None
-
-    # def scope_by_range(self, range: TextRange, start: ScopeID) -> Optional[ScopeID]:
+    # def scope_by_range(self, range: TextRange, start: ScopeID = None) -> ScopeID:
     #     """
-    #     Returns the smallest child scope that contains the given range
+    #     Returns the smallest child
     #     """
-    #     resolved_scope_id = self._ig.contains(range, overlap=False)
-    #     if resolved_scope_id is not None:
-    #         return resolved_scope_id
+    #     print(f"Finding scope by range: {range.line_range()}")
+    #     node = self.get_node(start)
+    #     if node.range.contains_line(range):
+    #         print(f"Scope {node.range.line_range()} contains {range.line_range()}")
+    #         for child_id, attrs in [
+    #             (src, attrs)
+    #             for src, dst, attrs in self._graph.in_edges(start, data=True)
+    #             if attrs["type"] == EdgeKind.ScopeToScope
+    #         ]:
+    #             if child := self.scope_by_range(range, child_id):
+    #                 return child
+    #         return start
 
-    #     return start
+    #     return None
+
+    def scope_by_range(
+        self, range: TextRange, start: ScopeID = None
+    ) -> Optional[ScopeID]:
+        """
+        Returns the smallest child scope that contains the given range
+        """
+        if not start:
+            start = self.root_idx
+
+        resolved_scope_id = self._ig.contains(range, overlap=False)
+        if resolved_scope_id is not None:
+            return resolved_scope_id
+
+        return start
+
+    def range_by_scope(self, scope: ScopeID) -> Optional[TextRange]:
+        """
+        Returns the range of a scope
+        """
+        return self.scope2range.get(scope, None)
 
     def child_scope_stack(self, start: ScopeID) -> List[ScopeID]:
         stack = self.child_scopes(start)

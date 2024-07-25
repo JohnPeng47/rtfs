@@ -15,7 +15,7 @@ class RepoNode(Node):
     repo_id: RepoNodeID
     name: str = None
     file_path: str = None
-    scope: str = None
+    scope: ScopeID = None
 
     @root_validator(pre=True)
     def validate_id(cls, values):
@@ -30,7 +30,7 @@ class RepoNode(Node):
 
         values["name"] = name
         values["file_path"] = filepath
-        values["scope"] = parts[1]
+        values["scope"] = ScopeID(parts[1])
         return values
 
     def __str__(self):
