@@ -53,6 +53,7 @@ class ChunkGraph:
             chunk_names.add(short_name)
             chunk_node = ChunkNode(
                 id=short_name,
+                og_id=chunk.node_id,
                 metadata=metadata,
                 content=chunk.get_content(),
             )
@@ -149,7 +150,7 @@ class ChunkGraph:
                 dst_chunk = self.find_chunk(Path(export_file), export_range)
 
                 if dst_chunk:
-                    print("Found chunk: ", dst_chunk.id, "with ref: ", ref.name)
+                    # print("Found chunk: ", dst_chunk.id, "with ref: ", ref.name)
 
                     edge = ImportEdge(ref=ref.name, kind=EdgeKind.ImportToExport)
                     self.add_edge(chunk_node.id, dst_chunk.id, edge)

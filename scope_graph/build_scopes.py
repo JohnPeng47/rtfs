@@ -34,7 +34,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
     local_scope_capture_indices: List = []
     local_import_stmt_capture_indices: List = []
     local_import_part_capture: Dict[int, LocalImportPartCapture] = defaultdict(list)
-
+    local_import_relimport: List = []
     # capture_id -> range map
     capture_map: Dict[int, TextRange] = {}
 
@@ -60,6 +60,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
                     scoping=scoping_enum,
                 )
                 local_def_captures.append(l)
+
             case [scoping, "definition"]:
                 index = i
                 symbol = None
@@ -71,23 +72,23 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
                     scoping=scoping_enum,
                 )
                 local_def_captures.append(l)
-            # TODO: confirm never used and delete
-            # case ["local", "reference", sym]:
-            #     index = i
-            #     symbol = sym
 
-            #     l = LocalRefCapture(index=index, symbol=symbol)
-            #     local_ref_captures.append(l)
             case ["local", "reference"]:
                 index = i
                 symbol = None
 
                 l = LocalRefCapture(index=index, symbol=symbol)
                 local_ref_captures.append(l)
+
             case ["local", "scope"]:
                 local_scope_capture_indices.append(i)
+
+            case ["local", "import", "prefix"]:
+                local_import_relimport.append(local_import_stmt_capture_indices[-1])
+
             case ["local", "import", "statement"]:
                 local_import_stmt_capture_indices.append(i)
+
             case ["local", "import", part]:
                 # assign part to the last import statement
                 part_index = local_import_stmt_capture_indices[-1]
@@ -121,8 +122,9 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
                     case ImportPartType.NAME:
                         names.append(parse_name(src_bytes, part_range))
 
+        rel_import = bool(i in local_import_relimport)
         import_stmt = LocalImportStmt(
-            range, names, from_name=from_name, aliases=aliases
+            range, names, from_name=from_name, aliases=aliases, relative=rel_import
         )
         scope_graph.insert_local_import(import_stmt)
 

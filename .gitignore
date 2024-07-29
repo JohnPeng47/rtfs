@@ -4,3 +4,4 @@ output.txt
 tests/repos/*
 output*
 *.prof
+*.ipynb

@@ -32,11 +32,13 @@ class LocalImportStmt:
         names: List[str],
         from_name: Optional[str] = "",
         aliases: Optional[List[str]] = [],
+        relative: bool = False,
     ):
         self.range = range
         self.names = names
         self.from_name = from_name
         self.aliases = aliases
+        self.relative = relative
 
     # Technically, this is the only python specific method
     def __str__(self):

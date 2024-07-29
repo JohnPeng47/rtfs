@@ -153,10 +153,20 @@ class RepoGraph:
         for imp in imports:
             export_file = self.fs.match_file(imp.namespace.to_path())
             if export_file:
-                # TODO: handle __init__.py case
                 if "__init__.py" in str(export_file):
-                    imports = self._imports[path]
-                    pass
+                    g = self.scopes_map[export_file]
+                    init_imports = self._construct_import(g, export_file, self.fs)
+
+                    for init_imp in init_imports:
+                        init_file = self.fs.match_file(init_imp.namespace.to_path())
+                        for name, def_scope in self._get_exports(
+                            self.scopes_map[init_file], export_file
+                        ):
+                            if imp.namespace.child == name:
+                                # TODO: currently mapping connections to actual imported file
+                                # but could potentially also map it to __init__.py
+                                imp2def.append((imp, def_scope, name, init_file))
+
                 else:
                     # match with exports
                     for name, def_scope in self._get_exports(
@@ -186,9 +196,9 @@ class RepoGraph:
     # (import_stmt, path, import_type)
     def _construct_import(
         self, g: ScopeGraph, file: Path, fs: RepoFs
-    ) -> Dict[Path, List[LocalImport]]:
+    ) -> List[LocalImport]:
         """
-        Constructs a map from file to its imports
+        Returns a list of file imports
         """
         # lists for checking if python module is system or third party
         sys_modules_list = SysModules(LANGUAGE)
@@ -197,6 +207,8 @@ class RepoGraph:
         imports = []
         for imp_node in g.get_all_imports():
             imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
+            if imp_stmt.relative:
+                print("Relative import found: ", imp_stmt)
             imp_blocks = import_stmt_to_import(
                 import_stmt=imp_stmt,
                 filepath=file,

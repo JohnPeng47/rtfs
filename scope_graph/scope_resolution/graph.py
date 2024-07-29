@@ -55,6 +55,7 @@ class ScopeGraph:
                     "from_name": new.from_name,
                     "aliases": new.aliases,
                     "names": new.names,
+                    "relative": new.relative,
                 },
             )
 

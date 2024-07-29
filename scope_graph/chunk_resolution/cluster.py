@@ -49,7 +49,7 @@ def cluster_leiden(digraph: nx.DiGraph):
 
 def cluster_infomap(digraph: nx.DiGraph):
     # Initialize Infomap
-    infomap = Infomap("--two-level")
+    infomap = Infomap("--two-level --seed 42")
 
     # Create a mapping from NetworkX node IDs to integer IDs
     node_id_map = {node: idx for idx, node in enumerate(digraph.nodes())}

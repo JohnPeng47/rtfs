@@ -115,41 +115,40 @@
     "as"
     (identifier) @local.import))
 
+;; OLD IMPORT STATEMENT
 ;;    from module import name1, name2
 ;;    from module import (
 ;;       LocalScope,
 ;;       LocalDef,
 ;;    )
+;;(import_from_statement
+;;  module_name: 
+;;    (dotted_name) @local.import.module
+;;  name: 
+;;    (dotted_name 
+;;      (identifier) @local.import.name)+
+;;) @local.import.statement
+
+;; Capture regular and relative imports
 (import_from_statement
   module_name: 
-    (dotted_name) @local.import.module
+    [
+      (dotted_name) @local.import.module
+      (relative_import
+        (import_prefix) @local.import.prefix
+        (dotted_name)? @local.import.module)
+    ]
   name: 
-    (dotted_name 
-      (identifier) @local.import.name)+
+    [
+      ;; Single name or multiple names on one line
+      (dotted_name 
+        (identifier) @local.import.name)+
+    ]
 ) @local.import.statement
 
-;;;; TODO: alias and wildcard imports not supported
-;;;; aliased (alias first)
-;;;;    from module import name1, name2
-;;;;    from module import (
-;;;;       LocalScope,
-;;;;       LocalDef,
-;;;;    )
-;;(import_from_statement
-;;  module_name: (dotted_name) @local.import.module
-;;  name: (
-;;    (aliased_import
-;;      name: (dotted_name (identifier) @local.import.name)
-;;      alias: (identifier) @local.import.alias)?
-;;  )+
-;;) @local.import.statement
-;;
-;;
-;;;; from module import *
-;;;;(import_from_statement
-;;;;  module_name: (dotted_name) @local.import.module
-;;;;  name: (wildcard_import) @local.import.wildcard)
-;;;;
+
+;; TODO: add support for aliases
+
 
 ;; class A
 (class_definition

@@ -25,6 +25,7 @@ class ChunkMetadata:
 
 class ChunkNode(Node):
     id: ChunkNodeID
+    og_id: str  # original ID on the BaseNode
     metadata: ChunkMetadata
     content: str
 
@@ -33,7 +34,7 @@ class ChunkNode(Node):
         return TextRange(
             start_byte=0,
             end_byte=0,
-            # subtract 1 to convert to 0-based to conform with TreeSitter 0 based indexing
+            # NOTE: subtract 1 to convert to 0-based to conform with TreeSitter 0 based indexing
             start_point=(self.metadata.start_line - 1, 0),
             end_point=(self.metadata.end_line - 1, 0),
         )

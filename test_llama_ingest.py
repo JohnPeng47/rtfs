@@ -77,6 +77,17 @@ def get_cluster2node(cluster2chunks, cg):
     }
 
 
+def print_chunks(cluster2node):
+    for cluster, nodes in list(cluster2node.items())[:10]:
+        print(f"Cluster {cluster}")
+        for node in nodes:
+            print(f"  {node}")
+            print(
+                "----------------------------------------------------------------------"
+            )
+            print(node.content)
+
+
 def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
     import time
 
@@ -90,9 +101,11 @@ def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
             chunk2cluster, cluster2chunk = cg.cluster()
             counter = Counter(chunk2cluster.values())
 
-            print(cg.to_str())
             print(counter)
+
+            # print(cg.to_str())
             # print(cg._repo_graph.to_str())
+            # print_chunks(get_cluster2node(cluster2chunk, cg))
 
             print(f"Execution time: {time.time() - start_time:.2f} seconds")
             exit()
