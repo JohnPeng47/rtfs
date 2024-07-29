@@ -126,7 +126,9 @@ class RepoGraph:
             if v == exp_node_id
         ]
 
-    def import_to_export_scope(self, ref_node_id: RepoNodeID, ref: str) -> List[RepoNode]:
+    def import_to_export_scope(
+        self, ref_node_id: RepoNodeID, ref: str
+    ) -> List[RepoNode]:
         """
         Returns the export (def) scopes that are tied to the import (ref) scope
         """

@@ -1,4 +1,5 @@
 from typing import Dict, Optional, List
+from collections import defaultdict
 
 from scope_graph.scope_resolution import LocalScope, LocalDef, Reference, Scoping
 from scope_graph.scope_resolution.imports import (
@@ -32,7 +33,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
     local_ref_captures: List[LocalRefCapture] = []
     local_scope_capture_indices: List = []
     local_import_stmt_capture_indices: List = []
-    local_import_part_capture: List[LocalImportPartCapture] = []
+    local_import_part_capture: Dict[int, LocalImportPartCapture] = defaultdict(list)
 
     # capture_id -> range map
     capture_map: Dict[int, TextRange] = {}
@@ -88,8 +89,10 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
             case ["local", "import", "statement"]:
                 local_import_stmt_capture_indices.append(i)
             case ["local", "import", part]:
+                # assign part to the last import statement
+                part_index = local_import_stmt_capture_indices[-1]
                 l = LocalImportPartCapture(index=i, part=part)
-                local_import_part_capture.append(l)
+                local_import_part_capture[part_index].append(l)
 
     root_range = TextRange(
         start_byte=root_node.start_byte,
@@ -107,7 +110,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
     for i in local_import_stmt_capture_indices:
         range = capture_map[i]
         from_name, aliases, names = "", [], []
-        for part in local_import_part_capture:
+        for part in local_import_part_capture[i]:
             part_range = capture_map[part.index]
             if range.contains(part_range):
                 match part.part:

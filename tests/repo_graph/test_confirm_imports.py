@@ -44,4 +44,5 @@ find_race_cond.py -> core.py
 find_race_cond.py -> models.py
 """
 
+    print(repo_graph.to_str())
     assert imports == repo_graph.to_str()
