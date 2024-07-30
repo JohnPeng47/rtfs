@@ -1,8 +1,11 @@
 from typing import Dict, Optional, NewType
 from enum import Enum
+from pydantic import root_validator
 
 from scope_graph.graph import Node
 from scope_graph.utils import TextRange
+import random
+import string
 
 
 class NodeKind(str, Enum):
@@ -22,6 +25,8 @@ class EdgeKind(str, Enum):
 
 
 class ScopeNode(Node):
+    # jank..
+    id: str = "".join(random.choices(string.ascii_letters, k=6))
     range: TextRange
     type: NodeKind
     name: Optional[str] = ""

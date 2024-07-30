@@ -6,21 +6,24 @@ from pathlib import Path
 
 ## Failing tests
 # Dotted assignment/ref
-# test = """
-# h.a = 1
-# h.a = h.b
-
-# def func1():
-#     a = b
-#     b = 2
-# """
-
 test = """
-from .abc import b
+h.a = 1
+h.a = h.b
 
-class EpicSplitter(NodeParser):
-
+def func1():
+    c = b
+    d = 2
 """
+
+# test = """
+# from .abc import b
+
+# b.c = 1
+
+# class EpicSplitter(NodeParser):
+#     a: int
+
+# """
 
 scope_graph = build_scope_graph(bytearray(test, encoding="utf-8"), language="python")
 print(scope_graph.to_str())

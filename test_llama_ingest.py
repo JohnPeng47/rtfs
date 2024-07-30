@@ -98,11 +98,10 @@ def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
             graph_dict = json.loads(f.read())
             cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
-            chunk2cluster, cluster2chunk = cg.cluster()
-            counter = Counter(chunk2cluster.values())
+            cg.cluster()
+            print(cg.get_chunks_attached_to_clusters())
 
-            print(counter)
-
+            print
             # print(cg.to_str())
             # print(cg._repo_graph.to_str())
             # print_chunks(get_cluster2node(cluster2chunk, cg))

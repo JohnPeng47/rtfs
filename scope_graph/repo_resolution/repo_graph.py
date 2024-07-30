@@ -108,8 +108,8 @@ class RepoGraph:
         return RepoNode(**node)
 
     def add_node(self, node_id: RepoNodeID):
-        node = RepoNode(repo_id=node_id)
-        self._graph.add_node(node.repo_id, **node.dict())
+        node = RepoNode(id=node_id)
+        self._graph.add_node(node.id, **node.dict())
 
     def add_edge(
         self, ref_node_id: RepoNodeID, def_node_id: RepoNodeID, ref: str, defn: str
@@ -159,6 +159,9 @@ class RepoGraph:
 
                     for init_imp in init_imports:
                         init_file = self.fs.match_file(init_imp.namespace.to_path())
+                        if not init_file:
+                            continue
+
                         for name, def_scope in self._get_exports(
                             self.scopes_map[init_file], export_file
                         ):
@@ -207,8 +210,6 @@ class RepoGraph:
         imports = []
         for imp_node in g.get_all_imports():
             imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
-            if imp_stmt.relative:
-                print("Relative import found: ", imp_stmt)
             imp_blocks = import_stmt_to_import(
                 import_stmt=imp_stmt,
                 filepath=file,

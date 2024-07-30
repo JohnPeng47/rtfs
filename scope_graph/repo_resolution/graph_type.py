@@ -16,14 +16,14 @@ class RepoNodeType(str, Enum):
 
 
 class RepoNode(Node):
-    repo_id: RepoNodeID
+    id: RepoNodeID
     name: str = None
     file_path: str = None
     scope: ScopeID = None
 
     @root_validator(pre=True)
     def validate_id(cls, values):
-        repo_id = values.get("repo_id")
+        repo_id = values.get("id")
         parts = repo_id.split("::")
 
         if len(parts) != 2:

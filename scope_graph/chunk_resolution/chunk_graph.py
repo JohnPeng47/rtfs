@@ -10,9 +10,24 @@ from scope_graph.scope_resolution.graph_types import ScopeID
 from scope_graph.repo_resolution.repo_graph import RepoGraph, RepoNodeID, repo_node_id
 from scope_graph.fs import RepoFs
 from scope_graph.utils import TextRange
+from scope_graph.graph import Node
 
-from .graph import ChunkMetadata, ChunkNode, EdgeKind, ImportEdge
-from .cluster import cluster_leiden, cluster_infomap
+from .graph import (
+    ChunkMetadata,
+    ClusterNode,
+    ChunkNode,
+    EdgeKind,
+    ImportEdge,
+    ClusterEdge,
+    NodeKind,
+    ChunkNodeID,
+)
+from .cluster import (
+    cluster_leiden,
+    cluster_infomap,
+    gen_cluster_summaries,
+    cluster_infomap_multilevel,
+)
 
 import logging
 from collections import defaultdict
@@ -83,25 +98,22 @@ class ChunkGraph:
 
         return cls(repo_path, cg)
 
-    def to_nodes(self, cluster: bool = True):
-        if cluster:
-            chunk2clusters, cluster2chunks = self.cluster()
-            for cluster, chunks in cluster2chunks.items():
-                for node in chunks:
-                    # create a new node representing the cluster
-                    node.set_community(chunk2clusters[node.id])
-
-        return self.get_all_nodes()
-
     def get_node(self, node_id: str) -> ChunkNode:
-        data = self._graph._node[node_id]
+        data = self._graph._node.get(node_id, None)
+        if not data:
+            return None
 
         # BUG: hacky fix but for some reason node_link_data stores
         # the data wihtout id
         if data.get("id", None):
             del data["id"]
 
-        return ChunkNode(id=node_id, **self._graph._node[node_id])
+        if data["kind"] == NodeKind.Cluster:
+            node = ClusterNode(id=node_id, **data)
+        elif data["kind"] == NodeKind.Chunk:
+            node = ChunkNode(id=node_id, **data)
+
+        return node
 
     def get_all_nodes(self) -> List[ChunkNode]:
         return [self.get_node(n) for n in self._graph.nodes]
@@ -109,9 +121,9 @@ class ChunkGraph:
     def add_edge(self, n1, n2, edge: ImportEdge):
         self._graph.add_edge(n1, n2, **edge.dict())
 
-    def add_node(self, chunk_node: ChunkNode):
-        id = chunk_node.id
-        self._graph.add_node(id, **chunk_node.dict())
+    def add_node(self, node: Node):
+        id = node.id
+        self._graph.add_node(id, **node.dict())
 
     def update_node(self, chunk_node: ChunkNode):
         self._graph.add_node(chunk_node)
@@ -167,21 +179,95 @@ class ChunkGraph:
 
         return None
 
-    def cluster(
-        self, alg: str = "infomap"
-    ) -> Tuple[Dict[ChunkNode, int], Dict[int, List[ChunkNode]]]:
+    def children(self, node_id: str):
+        return [u for u, v, attrs in self._graph.edges(data=True) if v == node_id]
+
+    def cluster(self, alg: str = "infomap") -> Dict[ChunkNodeID, Tuple]:
         """
         Get the node cluster and remap it to ChunkNodes
         """
-        node2cluster: Dict[ChunkNode, int] = {}
-        cluster2node: Dict[int, List[ChunkNode]] = {}
+        if alg == "infomap":
+            cluster_dict = cluster_infomap(self._graph)
+        else:
+            raise Exception(f"{alg} not supported")
 
-        if alg == "leiden":
-            chunk2clusters, cluster2chunks = cluster_leiden(self._graph)
-        elif alg == "infomap":
-            chunk2clusters, cluster2chunks = cluster_infomap(self._graph)
+        # should we just store this dict?
+        for chunk_node, clusters in cluster_dict.items():
+            for i in range(len(clusters) - 1):
+                # TODO: i lazy, not handle case where clusters[i: i+2] is len 1
+                parent, child = clusters[i : i + 2]
 
-        return chunk2clusters, cluster2chunks
+                parent_id = f"{i}:{parent}"
+                child_id = f"{i+1}:{child}"
+
+                parent_node = self.get_node(parent_id)
+                if not parent_node:
+                    parent_node = ClusterNode(id=parent_id, depth=i)
+                    self.add_node(parent_node)
+                child_node = self.get_node(child_id)
+                if not child_node:
+                    child_node = ClusterNode(id=child_id, depth=i + 1)
+                    self.add_node(child_node)
+
+                self.add_edge(
+                    child_id, parent_id, ClusterEdge(kind=EdgeKind.ClusterToCluster)
+                )
+
+            # last child_id is the cluster of chunk_node
+            self.add_edge(
+                chunk_node, child_id, ClusterEdge(kind=EdgeKind.NodeToCluster)
+            )
+
+        return cluster_dict
+
+    def get_clusters(self, depth: int = None) -> List[ClusterNode]:
+        cluster_nodes = [
+            self.get_node(node)
+            for node, attrs in self._graph.nodes(data=True)
+            if attrs.get("kind", "") == "Cluster"
+        ]
+        if depth is not None:
+            cluster_nodes = [node for node in cluster_nodes if node.depth == depth]
+
+        return cluster_nodes
+
+    def get_chunks_attached_to_clusters(self):
+        from collections import Counter
+
+        chunks_attached_to_clusters = {}
+        clusters = defaultdict(int)
+
+        total_chunks = len(
+            [
+                node
+                for node, attrs in self._graph.nodes(data=True)
+                if attrs["kind"] == "Chunk"
+            ]
+        )
+        total_leaves = 0
+        for u, v, attrs in self._graph.edges(data=True):
+            if attrs.get("kind") == EdgeKind.NodeToCluster:
+                chunk_node = self.get_node(u)
+                cluster_node = self.get_node(v)
+
+                if cluster_node.id not in chunks_attached_to_clusters:
+                    chunks_attached_to_clusters[cluster_node.id] = []
+
+                chunks_attached_to_clusters[cluster_node.id].append(chunk_node)
+                clusters[cluster_node.id] += 1
+                total_leaves += 1
+
+        # for cluster, chunks in chunks_attached_to_clusters.items():
+        #     print(f"---------------------{cluster}------------------")
+        #     for chunk in chunks:
+        #         print(chunk.id)
+        #         print(chunk.content)
+        #         print("--------------------------------------------------")
+
+        print(f"Total chunks: {total_chunks}")
+        print(f"Total leaves: {total_leaves}")
+
+        return chunks_attached_to_clusters
 
     def _chunk_short_name(self, chunk_node: BaseNode, i: int) -> str:
         # class_func = self._get_classes_and_funcs(

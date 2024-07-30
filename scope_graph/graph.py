@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class Node(BaseModel):
-    pass
+    id: str
 
 
 class Edge(BaseModel):

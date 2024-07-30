@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional, NewType
+from typing import List, Optional, NewType, Literal
 from pydantic.dataclasses import dataclass
 
 from scope_graph.graph import Node, Edge
@@ -8,6 +8,7 @@ from scope_graph.utils import TextRange
 
 
 ChunkNodeID = NewType("ChunkNodeID", str)
+ClusterID = NewType("ClusterID", str)
 
 
 @dataclass
@@ -23,11 +24,17 @@ class ChunkMetadata:
     community: Optional[int] = None
 
 
+class NodeKind(str, Enum):
+    Chunk = "Chunk"
+    Cluster = "Cluster"
+
+
 class ChunkNode(Node):
     id: ChunkNodeID
     og_id: str  # original ID on the BaseNode
     metadata: ChunkMetadata
     content: str
+    kind: NodeKind = NodeKind.Chunk
 
     @property
     def range(self):
@@ -57,10 +64,23 @@ class ChunkNode(Node):
         )
 
 
+class ClusterNode(Node):
+    id: ClusterID
+    depth: int
+    summary: str = ""
+    kind: NodeKind = NodeKind.Cluster
+
+
 class EdgeKind(str, Enum):
     ImportToExport = "ImportToExport"
+    ClusterToCluster = "ClusterToCluster"
+    NodeToCluster = "NodeToCluster"
 
 
 class ImportEdge(Edge):
     kind: EdgeKind
     ref: str
+
+
+class ClusterEdge(Edge):
+    kind: Literal[EdgeKind.ClusterToCluster, EdgeKind.NodeToCluster]
