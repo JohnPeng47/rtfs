@@ -14,6 +14,8 @@ from scope_graph.utils import TextRange
 
 import pytest
 
+from tests.data import CHUNK_GRAPH
+
 
 def range(start, end):
     return TextRange(
@@ -22,7 +24,9 @@ def range(start, end):
 
 
 @pytest.fixture
-def chunk_nodes(repo_path: str):
+def chunk_nodes(request):
+    repo_path = request.param
+
     def file_metadata_func(file_path: str) -> Dict:
         file_path = file_path.replace(repo_path, "")
         if file_path.startswith("/"):
@@ -68,11 +72,13 @@ def chunk_nodes(repo_path: str):
     )
 
     prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
+    return prepared_nodes
 
 
 @pytest.fixture
-def chunk_graph(repo_path: str, chunk_nodes):
-    return ChunkGraph(Path(repo_path), chunk_nodes)
+def chunk_graph(request, chunk_nodes):
+    repo_path = request.param
+    return ChunkGraph.from_chunks(Path(repo_path), chunk_nodes)
 
 
 @pytest.fixture(scope="function")

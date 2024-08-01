@@ -5,7 +5,6 @@ import mimetypes
 import fnmatch
 import networkx as nx
 import json
-from collections import Counter
 
 from llama_index.core import SimpleDirectoryReader
 from scope_graph.moatless.epic_split import EpicSplitter
@@ -88,7 +87,7 @@ def print_chunks(cluster2node):
             print(node.content)
 
 
-def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
+async def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
     import time
 
     start_time = time.time()
@@ -98,10 +97,9 @@ def main(repo_path, saved_graph_path, load: bool = False, save: bool = False):
             graph_dict = json.loads(f.read())
             cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
-            cg.cluster()
-            print(cg.get_chunks_attached_to_clusters())
+            cg.cluster(summarize=True)
+            print(len(cg.get_chunks_attached_to_clusters().values()))
 
-            print
             # print(cg.to_str())
             # print(cg._repo_graph.to_str())
             # print_chunks(get_cluster2node(cluster2chunk, cg))
@@ -156,4 +154,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
 
     saved_graph_path = os.path.join(GRAPH_FOLDER, Path(repo_path).name + ".json")
-    main(repo_path, saved_graph_path, load=load, save=save)
+
+    import asyncio
+
+    asyncio.run(main(repo_path, saved_graph_path, load=load, save=save))

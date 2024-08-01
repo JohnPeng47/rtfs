@@ -63,12 +63,18 @@ class ChunkNode(Node):
             content=self.content,
         )
 
+    def get_content(self):
+        return self.content
+
 
 class ClusterNode(Node):
     id: ClusterID
     depth: int
     summary: str = ""
     kind: NodeKind = NodeKind.Cluster
+
+    def get_content(self):
+        return self.summary
 
 
 class EdgeKind(str, Enum):

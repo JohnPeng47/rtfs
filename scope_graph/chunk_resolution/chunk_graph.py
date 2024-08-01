@@ -12,6 +12,8 @@ from scope_graph.fs import RepoFs
 from scope_graph.utils import TextRange
 from scope_graph.graph import Node
 
+from models import OpenAIModel, BaseModel
+
 from .graph import (
     ChunkMetadata,
     ClusterNode,
@@ -22,12 +24,7 @@ from .graph import (
     NodeKind,
     ChunkNodeID,
 )
-from .cluster import (
-    cluster_leiden,
-    cluster_infomap,
-    gen_cluster_summaries,
-    cluster_infomap_multilevel,
-)
+from .cluster import cluster_infomap, summarize_chunk_text, LLMException
 
 import logging
 from collections import defaultdict
@@ -43,6 +40,7 @@ class ChunkGraph:
         self._repo_graph = RepoGraph(repo_path)
         self._file2scope = defaultdict(set)
         self._chunkmap: Dict[Path, List[ChunkNode]] = defaultdict(list)
+        self._lm: BaseModel = OpenAIModel()
 
     # TODO: design decisions
     # turn import => export mapping into a function
@@ -115,6 +113,18 @@ class ChunkGraph:
 
         return node
 
+    def remove_node(self, node_id: str):
+        """
+        Remove a node from the graph by its ID.
+
+        Parameters:
+        node_id (str): The ID of the node to be removed.
+        """
+        if node_id in self._graph:
+            self._graph.remove_node(node_id)
+        else:
+            raise ValueError(f"Node with ID {node_id} does not exist in the graph.")
+
     def get_all_nodes(self) -> List[ChunkNode]:
         return [self.get_node(n) for n in self._graph.nodes]
 
@@ -180,18 +190,26 @@ class ChunkGraph:
         return None
 
     def children(self, node_id: str):
-        return [u for u, v, attrs in self._graph.edges(data=True) if v == node_id]
+        return [child for child, _ in self._graph.in_edges(node_id)]
 
-    def cluster(self, alg: str = "infomap") -> Dict[ChunkNodeID, Tuple]:
+    def parent(self, node_id: str):
+        parents = [parent for _, parent in self._graph.out_edges(node_id)]
+        if parents:
+            return parents[0]
+        return None
+
+    def cluster(
+        self, alg: str = "infomap", summarize: bool = False
+    ) -> Dict[ChunkNodeID, Tuple]:
         """
-        Get the node cluster and remap it to ChunkNodes
+        Entry method for cluster construction on ChunkGraph
         """
         if alg == "infomap":
             cluster_dict = cluster_infomap(self._graph)
         else:
             raise Exception(f"{alg} not supported")
 
-        # should we just store this dict?
+        max_cluster_depth = 0
         for chunk_node, clusters in cluster_dict.items():
             for i in range(len(clusters) - 1):
                 # TODO: i lazy, not handle case where clusters[i: i+2] is len 1
@@ -213,27 +231,91 @@ class ChunkGraph:
                     child_id, parent_id, ClusterEdge(kind=EdgeKind.ClusterToCluster)
                 )
 
+                if i > max_cluster_depth:
+                    max_cluster_depth = i
+
             # last child_id is the cluster of chunk_node
             self.add_edge(
                 chunk_node, child_id, ClusterEdge(kind=EdgeKind.NodeToCluster)
             )
 
+        for depth in range(max_cluster_depth, -1, -1):
+            clusters = self.get_clusters(depth)
+            # print(f"Clusters at depth {depth}: {len(clusters)}")
+
+            # Get rid of all intermediary clusters that have only one children
+            for cluster in clusters:
+                children = self.children(cluster)
+                if len(children) < 2:
+                    parent = self.parent(cluster)
+                    if parent:
+                        self.remove_node(cluster)
+                        for child in children:
+                            child_node = self.get_node(child)
+                            # print(
+                            #     f"Removing {cluster} and reattaching {child_node.id} to {parent}"
+                            # )
+                            self.add_edge(
+                                child,
+                                parent,
+                                ClusterEdge(
+                                    kind=(
+                                        EdgeKind.ClusterToCluster
+                                        if child_node.kind == NodeKind.Cluster
+                                        else EdgeKind.NodeToCluster
+                                    )
+                                ),
+                            )
+                    else:
+                        if not children:
+                            self.remove_node(cluster)
+                        else:
+                            child = children[0]
+                            grand_children = self.children(child)
+                            self.remove_node(child)
+                            for grand_child in grand_children:
+                                self.add_edge(
+                                    grand_child,
+                                    cluster,
+                                    ClusterEdge(
+                                        kind=(
+                                            EdgeKind.ClusterToCluster
+                                            if self.get_node(grand_child).kind
+                                            == NodeKind.Cluster
+                                            else EdgeKind.NodeToCluster
+                                        )
+                                    ),
+                                )
+
+                    continue
+
         return cluster_dict
+
+    def summarize(self):
+        pass
+        # # TODO: add filepath here, or some dir repr
+        # chunk_text = "\n".join(
+        #     [self.get_node(c).get_content() for c in self.children(cluster)]
+        # )
+        # print(
+        #     f"Summarizing clusters: {self.children(cluster)} at depth {depth}"
+        # )
+        # summary = await summarize_chunk_text(chunk_text)
+        # cluster_node = ClusterNode(id=cluster, depth=depth, summary=summary)
+
+        # self.update_node(cluster_node)
 
     def get_clusters(self, depth: int = None) -> List[ClusterNode]:
         cluster_nodes = [
-            self.get_node(node)
+            node
             for node, attrs in self._graph.nodes(data=True)
-            if attrs.get("kind", "") == "Cluster"
+            if attrs.get("kind", "") == NodeKind.Cluster
+            and attrs.get("depth", -1) == depth
         ]
-        if depth is not None:
-            cluster_nodes = [node for node in cluster_nodes if node.depth == depth]
 
         return cluster_nodes
 
     def get_chunks_attached_to_clusters(self):
-        from collections import Counter
-
         chunks_attached_to_clusters = {}
         clusters = defaultdict(int)
 
@@ -302,6 +384,21 @@ class ChunkGraph:
             repr += (
                 f"{u_node.metadata.file_name} --{ref}--> {v_node.metadata.file_name}\n"
             )
+        return repr
+
+    def to_str_cluster(self):
+        repr = ""
+        for node_id, node_data in self._graph.nodes(data=True):
+            if node_data["kind"] == "Cluster":
+                repr += f"ClusterNode: {node_id}\n"
+                for child, _, edge_data in self._graph.in_edges(node_id, data=True):
+                    if edge_data["kind"] == EdgeKind.NodeToCluster:
+                        chunk_node = self.get_node(child)
+                        repr += f"  ChunkNode: {chunk_node.id}\n"
+                    elif edge_data["kind"] == EdgeKind.ClusterToCluster:
+                        cluster_node = self.get_node(child)
+                        repr += f"  ClusterNode: {cluster_node.id}\n"
+
         return repr
 
     # def get_import_refs(
