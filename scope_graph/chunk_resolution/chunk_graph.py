@@ -351,12 +351,13 @@ class ChunkGraph:
                     [self.get_node(c).get_content() for c in self.children(cluster)]
                 )
                 try:
-                    summary = await summarize_chunk_text(chunk_text, depth)
+                    summary_data = await summarize_chunk_text(chunk_text, self._lm)
+                    print(summary_data)
                 except LLMException:
                     print("Failed to summarize")
                     continue
 
-                cluster_node = ClusterNode(id=cluster, summary_data=summary)
+                cluster_node = ClusterNode(id=cluster, summary_data=summary_data)
                 self.update_node(cluster_node)
 
         # # # TODO: add filepath here, or some dir repr
@@ -368,16 +369,6 @@ class ChunkGraph:
 
         # # self.update_node(cluster_node)
         # pass
-
-    # def get_clusters(self, depth: int = None) -> List[ClusterNode]:
-    #     cluster_nodes = [
-    #         node
-    #         for node, attrs in self._graph.nodes(data=True)
-    #         if attrs.get("kind", "") == NodeKind.Cluster
-    #         and attrs.get("depth", -1) == depth
-    #     ]
-
-    #     return cluster_nodes
 
     def get_chunks_attached_to_clusters(self):
         chunks_attached_to_clusters = {}

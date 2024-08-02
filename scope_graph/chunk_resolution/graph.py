@@ -7,6 +7,8 @@ from scope_graph.graph import Node, Edge
 from scope_graph.moatless.epic_split import CodeNode
 from scope_graph.utils import TextRange
 
+from .cluster import SummarizedChunk
+
 
 ChunkNodeID = NewType("ChunkNodeID", str)
 ClusterID = NewType("ClusterID", str)
@@ -68,17 +70,10 @@ class ChunkNode(Node):
         return self.content
 
 
-@dataclass
-class SummaryData:
-    summary: str = ""
-    title: str = ""
-    keywords: List[str] = Field(default_factory=list)
-
-
 class ClusterNode(Node):
     id: ClusterID
     kind: NodeKind = NodeKind.Cluster
-    summary_data: Optional[SummaryData] = None
+    summary_data: Optional[SummarizedChunk] = None
 
     def get_content(self):
         return self.summary_data.summary
