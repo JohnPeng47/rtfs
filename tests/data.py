@@ -23,7 +23,7 @@ ClusterNode: 2:2
 ClusterNode: 0:3
   ChunkNode: runner/shared.py#3.39
   ChunkNode: repo/runner.py#58.41
-ClusterNode: 2:4s
+ClusterNode: 2:4
   ChunkNode: runner/shared.py#4.36
   ChunkNode: repo/repository.py#54.53
   ChunkNode: evaluators/augment_additive.py#193.48

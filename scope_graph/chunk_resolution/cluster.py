@@ -1,9 +1,7 @@
 import networkx as nx
-import leidenalg as la
-import igraph as ig
 from infomap import Infomap
 import yaml
-from collections import defaultdict
+from dataclasses import dataclass
 from typing import Dict, List
 
 from models import OpenAIModel
@@ -44,7 +42,14 @@ class LLMException(Exception):
     pass
 
 
-def summarize_chunk_text(cluster, model: OpenAIModel):
+@dataclass
+class SummarizedChunk:
+    title: str
+    summary: str
+    key_variables: List[str]
+
+
+def summarize_chunk_text(cluster, model: OpenAIModel) -> SummarizedChunk:
     prompt = """
 The following chunks of code are grouped into the same feature.
 I want you to respond with a yaml object that contains the following fields: 
@@ -72,7 +77,9 @@ Here is the code:
         # Retry logic for yaml parsing
         for attempt in range(3):
             try:
-                return yaml.safe_load(yaml_content)
+                return SummarizedChunk(**yaml.safe_load(yaml_content))
+
+            # TODO: check if this fails 3 times only or not at all
             except yaml.YAMLError as e:
                 if attempt < 2:
                     print(f"YAML parsing failed on attempt {attempt + 1}, retrying...")

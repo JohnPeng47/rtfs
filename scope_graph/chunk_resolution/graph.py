@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List, Optional, NewType, Literal
 from pydantic.dataclasses import dataclass
+from pydantic import Field
 
 from scope_graph.graph import Node, Edge
 from scope_graph.moatless.epic_split import CodeNode
@@ -67,14 +68,23 @@ class ChunkNode(Node):
         return self.content
 
 
+@dataclass
+class SummaryData:
+    summary: str = ""
+    title: str = ""
+    keywords: List[str] = Field(default_factory=list)
+
+
 class ClusterNode(Node):
     id: ClusterID
-    depth: int
-    summary: str = ""
     kind: NodeKind = NodeKind.Cluster
+    summary_data: Optional[SummaryData] = None
 
     def get_content(self):
-        return self.summary
+        return self.summary_data.summary
+
+    def __hash__(self):
+        return sum([ord(c) for c in self.id])
 
 
 class EdgeKind(str, Enum):

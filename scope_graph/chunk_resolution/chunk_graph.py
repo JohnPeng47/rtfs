@@ -3,6 +3,8 @@ from pathlib import Path
 from llama_index.core.schema import BaseNode
 from typing import List, Tuple, Dict
 import os
+from collections import deque
+
 
 # from scope_graph.scope_resolution.interval_tree import IntervalGraph
 from scope_graph.scope_resolution.capture_refs import capture_refs
@@ -24,7 +26,12 @@ from .graph import (
     NodeKind,
     ChunkNodeID,
 )
-from .cluster import cluster_infomap, summarize_chunk_text, LLMException
+from .cluster import (
+    cluster_infomap,
+    summarize_chunk_text,
+    LLMException,
+    SummarizedChunk,
+)
 
 import logging
 from collections import defaultdict
@@ -41,6 +48,9 @@ class ChunkGraph:
         self._file2scope = defaultdict(set)
         self._chunkmap: Dict[Path, List[ChunkNode]] = defaultdict(list)
         self._lm: BaseModel = OpenAIModel()
+
+        self._cluster_roots = []
+        self._cluster_depth = None
 
     # TODO: design decisions
     # turn import => export mapping into a function
@@ -136,7 +146,7 @@ class ChunkGraph:
         self._graph.add_node(id, **node.dict())
 
     def update_node(self, chunk_node: ChunkNode):
-        self._graph.add_node(chunk_node)
+        self.add_node(chunk_node)
 
     def build_import_exports(self, chunk_node: ChunkNode):
         """
@@ -198,6 +208,39 @@ class ChunkGraph:
             return parents[0]
         return None
 
+    def get_clusters_at_depth(self, roots: List[ClusterNode], level):
+        queue = deque([(root, 0) for root in roots])
+        visited = set(roots)
+        clusters_at_level = []
+
+        while queue:
+            node, depth = queue.popleft()
+
+            if depth == level:
+                clusters_at_level.append(node)
+            elif depth > level:
+                break
+
+            for neighbor in self.children(node):
+                if neighbor not in visited:
+                    if self._graph.nodes[neighbor]["kind"] == NodeKind.Cluster:
+                        visited.add(neighbor)
+                        queue.append((neighbor, depth + 1))
+
+        return clusters_at_level
+
+    def _get_cluster_roots(self):
+        """
+        Gets the multiple root cluster nodes generated from Infomap
+        """
+        roots = []
+        for node in self._graph.nodes:
+            if isinstance(self.get_node(node), ClusterNode):
+                if not self.parent(node):
+                    roots.append(node)
+
+        return roots
+
     def cluster(
         self, alg: str = "infomap", summarize: bool = False
     ) -> Dict[ChunkNodeID, Tuple]:
@@ -209,6 +252,7 @@ class ChunkGraph:
         else:
             raise Exception(f"{alg} not supported")
 
+        # NOTE: this max depth number seems sketchy...
         max_cluster_depth = 0
         for chunk_node, clusters in cluster_dict.items():
             for i in range(len(clusters) - 1):
@@ -220,11 +264,11 @@ class ChunkGraph:
 
                 parent_node = self.get_node(parent_id)
                 if not parent_node:
-                    parent_node = ClusterNode(id=parent_id, depth=i)
+                    parent_node = ClusterNode(id=parent_id)
                     self.add_node(parent_node)
                 child_node = self.get_node(child_id)
                 if not child_node:
-                    child_node = ClusterNode(id=child_id, depth=i + 1)
+                    child_node = ClusterNode(id=child_id)
                     self.add_node(child_node)
 
                 self.add_edge(
@@ -239,9 +283,12 @@ class ChunkGraph:
                 chunk_node, child_id, ClusterEdge(kind=EdgeKind.NodeToCluster)
             )
 
-        for depth in range(max_cluster_depth, -1, -1):
-            clusters = self.get_clusters(depth)
-            # print(f"Clusters at depth {depth}: {len(clusters)}")
+        self._cluster_depth = max_cluster_depth
+        self._cluster_roots = self._get_cluster_roots()
+        print("Cluster root: ", self._cluster_roots)
+
+        for depth in range(max_cluster_depth + 1, -1, -1):
+            clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
 
             # Get rid of all intermediary clusters that have only one children
             for cluster in clusters:
@@ -252,9 +299,7 @@ class ChunkGraph:
                         self.remove_node(cluster)
                         for child in children:
                             child_node = self.get_node(child)
-                            # print(
-                            #     f"Removing {cluster} and reattaching {child_node.id} to {parent}"
-                            # )
+
                             self.add_edge(
                                 child,
                                 parent,
@@ -266,6 +311,7 @@ class ChunkGraph:
                                     )
                                 ),
                             )
+
                     else:
                         if not children:
                             self.remove_node(cluster)
@@ -286,34 +332,52 @@ class ChunkGraph:
                                         )
                                     ),
                                 )
-
                     continue
 
         return cluster_dict
 
-    def summarize(self):
-        pass
-        # # TODO: add filepath here, or some dir repr
-        # chunk_text = "\n".join(
-        #     [self.get_node(c).get_content() for c in self.children(cluster)]
-        # )
-        # print(
-        #     f"Summarizing clusters: {self.children(cluster)} at depth {depth}"
-        # )
-        # summary = await summarize_chunk_text(chunk_text)
-        # cluster_node = ClusterNode(id=cluster, depth=depth, summary=summary)
+    # TODO: we need to fix the depth of the node
+    async def summarize(self):
+        if self._cluster_depth is None:
+            raise ValueError("Must cluster before summarizing")
 
-        # self.update_node(cluster_node)
+        for depth in range(self._cluster_depth + 1, -1, -1):
+            clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
+            for cluster in clusters:
+                children = self.children(cluster)
+                print(f"Summarizing {len(children)} children of {cluster}")
 
-    def get_clusters(self, depth: int = None) -> List[ClusterNode]:
-        cluster_nodes = [
-            node
-            for node, attrs in self._graph.nodes(data=True)
-            if attrs.get("kind", "") == NodeKind.Cluster
-            and attrs.get("depth", -1) == depth
-        ]
+                chunk_text = "\n".join(
+                    [self.get_node(c).get_content() for c in self.children(cluster)]
+                )
+                try:
+                    summary = await summarize_chunk_text(chunk_text, depth)
+                except LLMException:
+                    print("Failed to summarize")
+                    continue
 
-        return cluster_nodes
+                cluster_node = ClusterNode(id=cluster, summary_data=summary)
+                self.update_node(cluster_node)
+
+        # # # TODO: add filepath here, or some dir repr
+        # # print(
+        # #     f"Summarizing clusters: {self.children(cluster)} at depth {depth}"
+        # # )
+        # # summary = await summarize_chunk_text(chunk_text)
+        # # cluster_node = ClusterNode(id=cluster, depth=depth, summary=summary)
+
+        # # self.update_node(cluster_node)
+        # pass
+
+    # def get_clusters(self, depth: int = None) -> List[ClusterNode]:
+    #     cluster_nodes = [
+    #         node
+    #         for node, attrs in self._graph.nodes(data=True)
+    #         if attrs.get("kind", "") == NodeKind.Cluster
+    #         and attrs.get("depth", -1) == depth
+    #     ]
+
+    #     return cluster_nodes
 
     def get_chunks_attached_to_clusters(self):
         chunks_attached_to_clusters = {}
@@ -389,6 +453,7 @@ class ChunkGraph:
     def to_str_cluster(self):
         repr = ""
         for node_id, node_data in self._graph.nodes(data=True):
+            # print(node_data)
             if node_data["kind"] == "Cluster":
                 repr += f"ClusterNode: {node_id}\n"
                 for child, _, edge_data in self._graph.in_edges(node_id, data=True):

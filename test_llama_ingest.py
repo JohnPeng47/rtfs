@@ -98,10 +98,12 @@ async def main(repo_path, saved_graph_path, load: bool = False, save: bool = Fal
             cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
             cg.cluster(summarize=True)
+            print(cg.to_str_cluster())
             print(len(cg.get_chunks_attached_to_clusters().values()))
 
+            # await cg.summarize()
+
             # print(cg.to_str())
-            # print(cg._repo_graph.to_str())
             # print_chunks(get_cluster2node(cluster2chunk, cg))
 
             print(f"Execution time: {time.time() - start_time:.2f} seconds")
@@ -109,6 +111,9 @@ async def main(repo_path, saved_graph_path, load: bool = False, save: bool = Fal
 
     cg = ingest(repo_path)
     if save:
+        cg.cluster(summarize=True)
+        await cg.summarize()
+
         print("Saving graph to disk")
         graph_dict = nx.node_link_data(cg._graph)
         with open(saved_graph_path, "w") as f:
