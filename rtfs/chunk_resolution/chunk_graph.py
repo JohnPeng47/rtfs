@@ -38,6 +38,7 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 
+# DESIGN_TODO: make a generic Graph object to handle add/update Node
 class ChunkGraph:
     def __init__(
         self,
@@ -346,48 +347,7 @@ class ChunkGraph:
 
         return cluster_dict
 
-    # TODO: we need to fix the depth of the node
-    async def summarize(self, user_confirm: bool = False):
-        if self._cluster_depth is None:
-            raise ValueError("Must cluster before summarizing")
-
-        if user_confirm:
-            agg_chunks = ""
-            for depth in range(self._cluster_depth + 1, -1, -1):
-                clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
-                for cluster in clusters:
-                    # only count Chunk tokens
-                    chunk_text = "\n".join(
-                        [
-                            self.get_node(c).get_content()
-                            for c in self.children(cluster)
-                            if self.get_node(c).kind == NodeKind.Chunk
-                        ]
-                    )
-                    agg_chunks += chunk_text
-
-            tokens, cost = self._lm.calc_input_cost(agg_chunks)
-            user_input = input(
-                f"The summarization will cost ${cost} and use {tokens} tokens. Do you want to proceed? (yes/no): "
-            )
-            if user_input.lower() != "yes":
-                print("Aborted.")
-                exit()
-
-        for depth in range(self._cluster_depth + 1, -1, -1):
-            clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
-            for cluster in clusters:
-                chunk_text = "\n".join(
-                    [self.get_node(c).get_content() for c in self.children(cluster)]
-                )
-                try:
-                    summary_data = await summarize_chunk_text(chunk_text, self._lm)
-                except LLMException:
-                    continue
-
-                cluster_node = ClusterNode(id=cluster, summary_data=summary_data)
-                self.update_node(cluster_node)
-
+    # TODO: code quality degrades exponentially from this point forward .. dont look
     def get_chunks_attached_to_clusters(self):
         chunks_attached_to_clusters = {}
         clusters = defaultdict(int)
@@ -443,6 +403,48 @@ class ChunkGraph:
         return list(
             filter(lambda d: d.data["def_type"] in ["class", "function"], def_nodes)
         )
+
+    # TODO: we need to fix the depth of the node
+    async def summarize(self, user_confirm: bool = False):
+        if self._cluster_depth is None:
+            raise ValueError("Must cluster before summarizing")
+
+        if user_confirm:
+            agg_chunks = ""
+            for depth in range(self._cluster_depth + 1, -1, -1):
+                clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
+                for cluster in clusters:
+                    # only count Chunk tokens
+                    chunk_text = "\n".join(
+                        [
+                            self.get_node(c).get_content()
+                            for c in self.children(cluster)
+                            if self.get_node(c).kind == NodeKind.Chunk
+                        ]
+                    )
+                    agg_chunks += chunk_text
+
+            tokens, cost = self._lm.calc_input_cost(agg_chunks)
+            user_input = input(
+                f"The summarization will cost ${cost} and use {tokens} tokens. Do you want to proceed? (yes/no): "
+            )
+            if user_input.lower() != "yes":
+                print("Aborted.")
+                exit()
+
+        for depth in range(self._cluster_depth + 1, -1, -1):
+            clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
+            for cluster in clusters:
+                chunk_text = "\n".join(
+                    [self.get_node(c).get_content() for c in self.children(cluster)]
+                )
+                try:
+                    summary_data = await summarize_chunk_text(chunk_text, self._lm)
+                except LLMException:
+                    continue
+
+                cluster_node = ClusterNode(id=cluster, summary_data=summary_data)
+                self.update_node(cluster_node)
 
     ##### FOR testing prompt #####
     def get_chunk_imports(self):
@@ -512,10 +514,10 @@ class ChunkGraph:
                         repr += f"  ClusterNode: {cluster_node.id}\n"
         return repr
 
-    def to_str_dfs(self):
-        INDENT_SYM = lambda d: "-" * d + " " if d > 0 else ""
-
+    def clusters_to_json(self):
         def dfs_cluster(cluster_id, depth=0):
+            graph_json = {}
+
             node_data = self._graph.nodes[cluster_id]
             sum_data = node_data.get("summary_data", {})
 
@@ -528,25 +530,55 @@ class ChunkGraph:
                 keywords = "<MISSING>"
                 summary = "<MISSING>"
 
-            cluster_reprs = []
-            indent = "  " * depth
-
-            repr = f"{INDENT_SYM(depth)}{title} {cluster_id}\n{indent}Keywords: {keywords}\n{indent}Summary: {summary}\n"
+            graph_json["title"] = title
+            graph_json["keywords"] = keywords
+            graph_json["summary"] = summary
+            graph_json["chunks"] = []
+            graph_json["children"] = []
 
             for child, _, edge_data in self._graph.in_edges(cluster_id, data=True):
                 if edge_data["kind"] == EdgeKind.NodeToCluster:
                     chunk_node = self.get_node(child)
-                    repr += f"{indent}  ChunkNode: {chunk_node.id}\n"
+                    # TODO: change to include file name
+                    chunk_info = {
+                        "id": chunk_node.id,
+                        "file_path": chunk_node.metadata.file_path,
+                    }
+                    graph_json["chunks"].append(chunk_info)
+
                 elif edge_data["kind"] == EdgeKind.ClusterToCluster:
-                    cluster_reprs.append(dfs_cluster(child, depth + 1))
+                    graph_json["children"].append(dfs_cluster(child, depth + 1))
 
-            repr += "\n".join(cluster_reprs)
-            return repr
+            return graph_json
 
-        repr = ""
+        graph_jsons = []
         for node_id, node_data in self._graph.nodes(data=True):
             if node_data["kind"] == "Cluster" and not self.parent(node_id):
-                repr += dfs_cluster(node_id)
+                graph_jsons.append(dfs_cluster(node_id))
+
+        return graph_jsons
+
+    def clusters_to_str(self):
+        INDENT_SYM = lambda d: "-" * d + " " if d > 0 else ""
+
+        def format_cluster(cluster_json, depth=0):
+            indent = "  " * depth
+            repr = f"{INDENT_SYM(depth)}{cluster_json['title']} {cluster_json.get('id', '<MISSING>')}\n"
+            repr += f"{indent}Keywords: {cluster_json['keywords']}\n"
+            repr += f"{indent}Summary: {cluster_json['summary']}\n"
+
+            for chunk in cluster_json["chunks"]:
+                repr += f"{indent}  ChunkNode: {chunk['id']}\n"
+
+            for child in cluster_json["children"]:
+                repr += format_cluster(child, depth + 1)
+
+            return repr
+
+        clusters_json = self.clusters_to_json()
+        repr = ""
+        for cluster_json in clusters_json:
+            repr += format_cluster(cluster_json)
         return repr
 
     # def get_import_refs(

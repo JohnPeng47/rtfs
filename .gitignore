@@ -5,3 +5,5 @@ tests/repos/*
 output*
 *.prof
 *.ipynb
+dist/
+*.egg-info/

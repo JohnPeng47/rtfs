@@ -74,7 +74,7 @@ async def main(repo_path, saved_graph_path: Path):
     if graph_dict:
         cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
-        output = cg.to_str_dfs()
+        output = cg.clusters_to_str()
 
     else:
         cg = ingest(repo_path)
@@ -86,7 +86,7 @@ async def main(repo_path, saved_graph_path: Path):
         with open(saved_graph_path, "w") as f:
             f.write(json.dumps(graph_dict))
 
-        output = cg.to_str_dfs()
+        output = cg.clusters_to_str()
 
     print(output)
 
