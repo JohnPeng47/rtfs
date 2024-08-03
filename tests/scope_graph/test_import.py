@@ -1,4 +1,4 @@
-from scope_graph.build_scopes import build_scope_graph
+from rtfs.build_scopes import build_scope_graph
 
 from pathlib import Path
 

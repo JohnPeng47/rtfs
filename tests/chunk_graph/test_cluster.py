@@ -1,4 +1,4 @@
-from scope_graph.chunk_resolution.chunk_graph import ChunkGraph
+from rtfs.chunk_resolution.chunk_graph import ChunkGraph
 from conftest import chunk_graph, chunk_nodes, CHUNK_GRAPH
 import os
 

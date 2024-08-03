@@ -1,0 +1,2 @@
+[console_scripts]
+rtfs = rtfs.cli:entrypoint

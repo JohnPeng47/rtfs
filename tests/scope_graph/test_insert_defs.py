@@ -1,9 +1,9 @@
-from scope_graph.build_scopes import build_scope_graph
-from scope_graph.languages import PythonParse
-from scope_graph.scope_resolution.definition import LocalDef
-from scope_graph.scope_resolution.scope import LocalScope
-from scope_graph.scope_resolution.graph import ScopeGraph
-from scope_graph.utils import TextRange
+from rtfs.build_scopes import build_scope_graph
+from rtfs.languages import PythonParse
+from rtfs.scope_resolution.definition import LocalDef
+from rtfs.scope_resolution.scope import LocalScope
+from rtfs.scope_resolution.graph import ScopeGraph
+from rtfs.utils import TextRange
 
 
 def test_insert_def():

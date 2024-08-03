@@ -5,12 +5,12 @@ import mimetypes
 import fnmatch
 
 from llama_index.core import SimpleDirectoryReader
-from scope_graph.moatless.epic_split import EpicSplitter
-from scope_graph.moatless.settings import IndexSettings
+from rtfs.moatless.epic_split import EpicSplitter
+from rtfs.moatless.settings import IndexSettings
 
-from scope_graph.chunk_resolution.chunk_graph import ChunkGraph
-from scope_graph.repo_resolution.repo_graph import RepoGraph
-from scope_graph.utils import TextRange
+from rtfs.chunk_resolution.chunk_graph import ChunkGraph
+from rtfs.repo_resolution.repo_graph import RepoGraph
+from rtfs.utils import TextRange
 
 import pytest
 

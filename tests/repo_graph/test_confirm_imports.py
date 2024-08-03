@@ -1,4 +1,4 @@
-from scope_graph.repo_resolution.repo_graph import RepoGraph
+from rtfs.repo_resolution.repo_graph import RepoGraph
 from conftest import repo_graph
 import os
 

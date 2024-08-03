@@ -3,7 +3,7 @@ import sys
 import fnmatch
 import dotenv
 
-from moatless.summary.models import OpenAIModel, ModelArguments
+from rtfs.moatless.summary.models import OpenAIModel, ModelArguments
 
 dotenv.load_dotenv()
 

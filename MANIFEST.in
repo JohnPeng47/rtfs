@@ -1,0 +1,6 @@
+exclude .venv/*
+exclude tests/*
+exclude .vscode
+exclude .benchmarks
+exclude .pytest_cache
+recursive-include rtfs/languages/*
