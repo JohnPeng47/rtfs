@@ -1,5 +1,0 @@
-runners:
-  python:
-    collect_tests_options:
-      - --ignore
-      - batata
