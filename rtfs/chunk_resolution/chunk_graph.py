@@ -263,83 +263,89 @@ class ChunkGraph:
         else:
             raise Exception(f"{alg} not supported")
 
+        # NOTE: this max depth number seems sketchy...
         max_cluster_depth = 0
         for chunk_node, clusters in cluster_dict.items():
-            prev_node = None
-            for i, cluster in enumerate(clusters):
-                cluster_id = f"{i}:{cluster}"
-                cluster_node = self.get_node(cluster_id)
-                if not cluster_node:
-                    cluster_node = ClusterNode(id=cluster_id)
-                    self.add_node(cluster_node)
+            for i in range(len(clusters) - 1):
+                # TODO: i lazy, not handle case where clusters[i: i+2] is len 1
+                parent, child = clusters[i : i + 2]
 
-                if prev_node:
-                    self.add_edge(
-                        cluster_id, prev_node.id, ClusterEdge(kind=EdgeKind.ClusterToCluster)
-                    )
-                prev_node = cluster_node
+                parent_id = f"{i}:{parent}"
+                child_id = f"{i+1}:{child}"
+
+                parent_node = self.get_node(parent_id)
+                if not parent_node:
+                    parent_node = ClusterNode(id=parent_id)
+                    self.add_node(parent_node)
+                child_node = self.get_node(child_id)
+                if not child_node:
+                    child_node = ClusterNode(id=child_id)
+                    self.add_node(child_node)
+
+                self.add_edge(
+                    child_id, parent_id, ClusterEdge(kind=EdgeKind.ClusterToCluster)
+                )
 
                 if i > max_cluster_depth:
                     max_cluster_depth = i
 
-            # Connect chunk to its immediate parent cluster
+            # last child_id is the cluster of chunk_node
             self.add_edge(
-                chunk_node, cluster_id, ClusterEdge(kind=EdgeKind.NodeToCluster)
+                chunk_node, child_id, ClusterEdge(kind=EdgeKind.NodeToCluster)
             )
 
         self._cluster_depth = max_cluster_depth
         self._cluster_roots = self._get_cluster_roots()
-        print("Cluster roots: ", self._cluster_roots)
+        print("Cluster root: ", self._cluster_roots)
 
-        self._remove_intermediate_nodes()
-
-        return cluster_dict
-
-    def _remove_intermediate_nodes(self):
-        """
-        Remove intermediate nodes with only one child
-        """
-        for depth in range(self._cluster_depth, -1, -1):
+        for depth in range(max_cluster_depth + 1, -1, -1):
             clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
+
+            # Get rid of all intermediary clusters that have only one children
             for cluster in clusters:
                 children = self.children(cluster)
-                if len(children) == 1:
-                    child = children[0]
+                if len(children) < 2:
                     parent = self.parent(cluster)
                     if parent:
                         self.remove_node(cluster)
-                        self.add_edge(
-                            child,
-                            parent,
-                            ClusterEdge(
-                                kind=(
-                                    EdgeKind.ClusterToCluster
-                                    if self.get_node(child).kind == NodeKind.Cluster
-                                    else EdgeKind.NodeToCluster
-                                )
-                            ),
-                        )
-                    elif child != cluster:  # Root node with one child
-                        grand_children = self.children(child)
-                        self.remove_node(child)
-                        for grand_child in grand_children:
+                        for child in children:
+                            child_node = self.get_node(child)
+
                             self.add_edge(
-                                grand_child,
-                                cluster,
+                                child,
+                                parent,
                                 ClusterEdge(
                                     kind=(
                                         EdgeKind.ClusterToCluster
-                                        if self.get_node(grand_child).kind == NodeKind.Cluster
+                                        if child_node.kind == NodeKind.Cluster
                                         else EdgeKind.NodeToCluster
                                     )
                                 ),
                             )
 
-        # Update cluster roots and depth
-        self._cluster_roots = self._get_cluster_roots()
-        self._cluster_depth = max(
-            len(clusters) for _, clusters in cluster_infomap(self._graph).items()
-        ) - 1
+                    else:
+                        if not children:
+                            self.remove_node(cluster)
+                        else:
+                            child = children[0]
+                            grand_children = self.children(child)
+                            self.remove_node(child)
+                            for grand_child in grand_children:
+                                self.add_edge(
+                                    grand_child,
+                                    cluster,
+                                    ClusterEdge(
+                                        kind=(
+                                            EdgeKind.ClusterToCluster
+                                            if self.get_node(grand_child).kind
+                                            == NodeKind.Cluster
+                                            else EdgeKind.NodeToCluster
+                                        )
+                                    ),
+                                )
+                    continue
+
+        return cluster_dict
 
     # TODO: code quality degrades exponentially from this point forward .. dont look
     def get_chunks_attached_to_clusters(self):
