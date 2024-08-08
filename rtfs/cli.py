@@ -64,17 +64,22 @@ def ingest(repo_path: str) -> ChunkGraph:
     return chunk_graph
 
 
+import time
+
+
 async def main(repo_path, saved_graph_path: Path):
+    start_time = time.time()
+
     graph_dict = {}
     if saved_graph_path.exists():
         with open(saved_graph_path, "r") as f:
-            print(f"Loading from saved data .. {saved_graph_path.resolve()}")
+            # print(f"Loading from saved data .. {saved_graph_path.resolve()}")
             graph_dict = json.loads(f.read())
 
     if graph_dict:
         cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
 
-        output = cg.clusters_to_str()
+        output = json.dumps(cg.clusters_to_json())
 
     else:
         cg = ingest(repo_path)
@@ -86,9 +91,12 @@ async def main(repo_path, saved_graph_path: Path):
         with open(saved_graph_path, "w") as f:
             f.write(json.dumps(graph_dict))
 
-        output = cg.clusters_to_str()
+        output = json.dumps(cg.clusters_to_json())
 
     print(output)
+
+    end_time = time.time()
+    print(f"Runtime of the function: {end_time - start_time} seconds")
 
 
 def entrypoint():

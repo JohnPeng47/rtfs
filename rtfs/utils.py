@@ -36,13 +36,20 @@ class TextRange(BaseModel):
         )
 
     def add_line_offset(self, offset: int):
-        self.start_point = Point(
+        new_start_point = Point(
             self.start_point.row + offset,
             self.start_point.column,
         )
-        self.end_point = Point(
+        new_end_point = Point(
             self.end_point.row + offset,
             self.end_point.column,
+        )
+
+        return TextRange(
+            start_byte=self.start_byte,
+            end_byte=self.end_byte,
+            start_point=new_start_point,
+            end_point=new_end_point,
         )
 
     def line_range(self):

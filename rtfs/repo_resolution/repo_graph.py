@@ -48,8 +48,10 @@ class RepoGraph:
         self._resolved_import_refs: Dict[Path, List[str]] = defaultdict(list)
         self.total_scopes = set()
 
+        # TODO_PERF: Parallelizable
         # TODO: put everything into a function that can be measured with TQDM
         # construct imports
+        # Original code commented out for reference
         for path, g in self.scopes_map.items():
             self._imports[path] = self._construct_import(g, path, self.fs)
             self._missing_import_refs[path] = [
@@ -66,6 +68,7 @@ class RepoGraph:
                 for local_imp in imports
                 if local_imp.module_type == ModuleType.LOCAL
             ]
+            # TODO_PERF: check perf for this
             imp2def.extend(self.map_local_to_exports(path, local_imports))
 
             for imp, def_scope, name, export_file in imp2def:
@@ -190,6 +193,8 @@ class RepoGraph:
             # index by full path
             sg = build_scope_graph(file_content, language=LANGUAGE)
             scope_map[path.resolve()] = sg
+
+            # print(path)
 
             # print(f"File : {path.name}\n", sg.to_str())
 

@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import List, Optional, NewType, Literal
 from pydantic.dataclasses import dataclass
-from pydantic import Field
 
 from rtfs.graph import Node, Edge
 from rtfs.moatless.epic_split import CodeNode

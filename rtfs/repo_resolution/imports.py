@@ -84,6 +84,7 @@ def import_stmt_to_import(
             module_type = ModuleType.UNKNOWN
 
         # resolve refs to this import
+        # TODO_PERF: store static references here?
         ref_scopes = []
         for scope in g.scopes():
             for ref in g.references_by_origin(scope):
