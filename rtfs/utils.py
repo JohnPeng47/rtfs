@@ -35,13 +35,13 @@ class TextRange(BaseModel):
             end_point=end_point,
         )
 
-    def add_line_offset(self, offset: int):
+    def add_offset(self, start_offset: int, end_offset: int):
         new_start_point = Point(
-            self.start_point.row + offset,
+            self.start_point.row + start_offset,
             self.start_point.column,
         )
         new_end_point = Point(
-            self.end_point.row + offset,
+            self.end_point.row + end_offset,
             self.end_point.column,
         )
 
@@ -51,6 +51,24 @@ class TextRange(BaseModel):
             start_point=new_start_point,
             end_point=new_end_point,
         )
+    
+    # def sub_offset(self, row_offset: int, column_offset: int):
+    #     new_start_point = Point(
+    #         self.start_point.row - row_offset,
+    #         self.start_point.column - column_offset,
+    #     )
+    #     new_end_point = Point(
+    #         self.end_point.row - row_offset,
+    #         self.end_point.column - column_offset,
+    #     )
+
+    #     return TextRange(
+    #         start_byte=self.start_byte,
+    #         end_byte=self.end_byte,
+    #         start_point=new_start_point,
+    #         end_point=new_end_point,
+    #     )
+    
 
     def line_range(self):
         return self.start_point.row, self.end_point.row

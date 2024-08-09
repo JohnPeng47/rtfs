@@ -28,7 +28,8 @@ class EdgeKind(str, Enum):
 
 class ScopeNode(Node):
     # jank..
-    id: str = "".join(random.choices(string.ascii_letters, k=6))
+    # TODO: NEED TO REMOVE THIS!!!
+    id: str = "".join(random.choices(string.ascii_letters, k=10))
     range: TextRange
     type: NodeKind
     name: Optional[str] = ""

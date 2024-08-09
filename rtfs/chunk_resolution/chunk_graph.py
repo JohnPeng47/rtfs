@@ -18,8 +18,10 @@ from .graph import (
     ChunkMetadata,
     ClusterNode,
     ChunkNode,
-    EdgeKind,
     ImportEdge,
+    CallEdge,
+    ClusterEdgeKind,
+    ChunkEdgeKind,
     ClusterEdge,
     NodeKind,
     ChunkNodeID,
@@ -160,6 +162,11 @@ class ChunkGraph:
     def update_node(self, chunk_node: ChunkNode):
         self.add_node(chunk_node)
 
+    # TODO: use this to build the call graph
+    # find unique paths:
+    # find all root nodes (no incoming edges)
+    # iterate dfs and add all nodes to seen list
+    # start from another node
     def build_import_exports(self, chunk_node: ChunkNode):
         """
         Build the import to export mapping for a chunk
@@ -170,7 +177,8 @@ class ChunkGraph:
         chunk_refs = capture_refs(chunk_node.content.encode())
 
         for ref in chunk_refs:
-            ref.range.add_line_offset(chunk_node.metadata.start_line)
+            # align ref with chunks offset
+            ref.range = ref.range.add_offset(chunk_node.metadata.start_line, chunk_node.metadata.start_line)
             # range -> scope
             ref_scope = scope_graph.scope_by_range(ref.range)
             # scope (import) -> scope (export)
@@ -194,10 +202,14 @@ class ChunkGraph:
                 dst_chunk = self.find_chunk(Path(export_file), export_range)
 
                 if dst_chunk:
-                    # print("Found chunk: ", dst_chunk.id, "with ref: ", ref.name)
-
-                    edge = ImportEdge(ref=ref.name, kind=EdgeKind.ImportToExport)
-                    self.add_edge(chunk_node.id, dst_chunk.id, edge)
+                    if scope_graph.is_call_ref(ref.range):
+                        call_edge = CallEdge(ref=ref.name)
+                        self.add_edge(chunk_node.id, dst_chunk.id, call_edge)
+                                            
+                    # differentiate between ImportToExport chunks and CallToExport chunks
+                    # so in the future we can use this for file level edges
+                    ref_edge = ImportEdge(ref=ref.name)
+                    self.add_edge(chunk_node.id, dst_chunk.id, ref_edge)
 
     # TODO: should really use IntervalGraph here but chunks are small enough
     def find_chunk(self, file_path: Path, range: TextRange):
@@ -283,7 +295,7 @@ class ChunkGraph:
                     self.add_node(child_node)
 
                 self.add_edge(
-                    child_id, parent_id, ClusterEdge(kind=EdgeKind.ClusterToCluster)
+                    child_id, parent_id, ClusterEdge(kind=ClusterEdgeKind.ClusterToCluster)
                 )
 
                 if i > max_cluster_depth:
@@ -291,7 +303,7 @@ class ChunkGraph:
 
             # last child_id is the cluster of chunk_node
             self.add_edge(
-                chunk_node, child_id, ClusterEdge(kind=EdgeKind.NodeToCluster)
+                chunk_node, child_id, ClusterEdge(kind=ClusterEdgeKind.ChunkToCluster)
             )
 
         self._cluster_depth = max_cluster_depth
@@ -316,9 +328,9 @@ class ChunkGraph:
                                 parent,
                                 ClusterEdge(
                                     kind=(
-                                        EdgeKind.ClusterToCluster
+                                        ClusterEdgeKind.ClusterToCluster
                                         if child_node.kind == NodeKind.Cluster
-                                        else EdgeKind.NodeToCluster
+                                        else ClusterEdgeKind.ChunkToCluster
                                     )
                                 ),
                             )
@@ -336,10 +348,10 @@ class ChunkGraph:
                                     cluster,
                                     ClusterEdge(
                                         kind=(
-                                            EdgeKind.ClusterToCluster
+                                            ClusterEdgeKind.ClusterToCluster
                                             if self.get_node(grand_child).kind
                                             == NodeKind.Cluster
-                                            else EdgeKind.NodeToCluster
+                                            else ClusterEdgeKind.ChunkToCluster
                                         )
                                     ),
                                 )
@@ -361,7 +373,7 @@ class ChunkGraph:
         )
         total_leaves = 0
         for u, v, attrs in self._graph.edges(data=True):
-            if attrs.get("kind") == EdgeKind.NodeToCluster:
+            if attrs.get("kind") == ClusterEdgeKind.ChunkToCluster:
                 chunk_node = self.get_node(u)
                 cluster_node = self.get_node(v)
 
@@ -457,7 +469,7 @@ class ChunkGraph:
                     if child_node.kind == NodeKind.Chunk:
                         try:
                             for _, _, attrs in self._graph.edges(child, data=True):
-                                if attrs["kind"] == EdgeKind.ImportToExport:
+                                if attrs["kind"] == ChunkEdgeKind.ImportFrom:
                                     ref = attrs["ref"]
                                     ref_edges[ref] += 1
                         except Exception:
@@ -506,10 +518,10 @@ class ChunkGraph:
             if node_data["kind"] == "Cluster":
                 repr += f"ClusterNode: {node_id}\n"
                 for child, _, edge_data in self._graph.in_edges(node_id, data=True):
-                    if edge_data["kind"] == EdgeKind.NodeToCluster:
+                    if edge_data["kind"] == ClusterEdgeKind.ChunkToCluster:
                         chunk_node = self.get_node(child)
                         repr += f"  ChunkNode: {chunk_node.id}\n"
-                    elif edge_data["kind"] == EdgeKind.ClusterToCluster:
+                    elif edge_data["kind"] == ClusterEdgeKind.ClusterToCluster:
                         cluster_node = self.get_node(child)
                         repr += f"  ClusterNode: {cluster_node.id}\n"
         return repr
@@ -537,7 +549,7 @@ class ChunkGraph:
             graph_json["children"] = []
 
             for child, _, edge_data in self._graph.in_edges(cluster_id, data=True):
-                if edge_data["kind"] == EdgeKind.NodeToCluster:
+                if edge_data["kind"] == ClusterEdgeKind.ChunkToCluster:
                     chunk_node = self.get_node(child)
                     # TODO: change to include file name
                     chunk_info = {
@@ -546,7 +558,7 @@ class ChunkGraph:
                     }
                     graph_json["chunks"].append(chunk_info)
 
-                elif edge_data["kind"] == EdgeKind.ClusterToCluster:
+                elif edge_data["kind"] == ClusterEdgeKind.ClusterToCluster:
                     graph_json["children"].append(dfs_cluster(child, depth + 1))
 
             return graph_json

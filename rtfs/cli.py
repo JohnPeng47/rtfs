@@ -69,17 +69,20 @@ import time
 
 async def main(repo_path, saved_graph_path: Path):
     start_time = time.time()
-
     graph_dict = {}
+
     if saved_graph_path.exists():
         with open(saved_graph_path, "r") as f:
-            # print(f"Loading from saved data .. {saved_graph_path.resolve()}")
             graph_dict = json.loads(f.read())
 
     if graph_dict:
         cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
+        for u, v, attrs in cg._graph.edges(data=True):
+            if attrs["kind"] == "CallToExport":
+                print(u, v)
 
         output = json.dumps(cg.clusters_to_json())
+        print(cg.clusters_to_str())
 
     else:
         cg = ingest(repo_path)
@@ -93,7 +96,7 @@ async def main(repo_path, saved_graph_path: Path):
 
         output = json.dumps(cg.clusters_to_json())
 
-    print(output)
+    # print(output)
 
     end_time = time.time()
     print(f"Runtime of the function: {end_time - start_time} seconds")

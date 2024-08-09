@@ -49,10 +49,6 @@ class IntervalGraph:
                 for interval in self._interval_tree[start:end]
                 if interval.begin <= start and end <= interval.end
             ]
-            # for interval in intervals:
-            #     print(
-            #         f"Scope ({interval.data.start, interval.data.end}) contains {range.line_range()}"
-            #     )
 
         if not intervals:
             return None

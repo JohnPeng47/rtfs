@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Iterator, Tuple
 
+from rtfs.utils import TextRange
 from rtfs.config import FILE_GLOB_ENDING, LANGUAGE
 from rtfs.repo_resolution.namespace import NameSpace
 
@@ -28,6 +29,11 @@ class RepoFs:
             if file.suffix == SRC_EXT:
                 yield file, file.read_bytes()
 
+    def get_file_range(self, path: Path, range: TextRange) -> bytes:
+        if path.suffix == SRC_EXT:
+            if range:
+                return "\n".join(path.read_text().split("\n")[range.start_point.row : range.end_point.row])
+            
     # TODO: need to account for relative paths
     # we miss the following case:
     # - import a => will match any file in the repo that ends with "a"

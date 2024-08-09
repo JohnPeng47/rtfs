@@ -94,8 +94,6 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
                 local_import_stmt_capture_indices.append(i)
 
             case ["local", "import", part]:
-                print(part, node.text.decode())
-
                 # assign part to the last import statement
                 part_index = local_import_stmt_capture_indices[-1]
                 l = LocalImportPartCapture(index=i, part=part)
@@ -175,6 +173,8 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
     for call_capture in local_call_captures:
         range = capture_map[call_capture.index]
         local_call = LocalCall(range, call_capture.name, call_capture.parameters)
+
         scope_graph.insert_local_call(local_call)
+        
 
     return scope_graph
