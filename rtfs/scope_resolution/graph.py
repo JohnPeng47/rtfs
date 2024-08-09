@@ -6,12 +6,16 @@ from collections import defaultdict
 from rtfs.graph import Node
 from rtfs.utils import TextRange
 
-from .imports import LocalImportStmt
-from .definition import LocalDef
-from .reference import Reference
-from .scope import LocalScope, ScopeStack
-from .graph_types import NodeKind, EdgeKind, ScopeNode, ScopeID
-from .interval_tree import IntervalGraph
+from rtfs.scope_resolution import (
+    LocalImportStmt,
+    LocalDef,
+    Reference,
+    LocalScope,
+    ScopeStack,
+    LocalCall,
+)
+from rtfs.scope_resolution.graph_types import NodeKind, EdgeKind, ScopeNode, ScopeID
+from rtfs.scope_resolution.interval_tree import IntervalGraph
 
 
 class ScopeGraph:
@@ -155,6 +159,31 @@ class ScopeGraph:
             # add an edge back to the originating scope of the reference
             self._graph.add_edge(ref_idx, local_scope_idx, type=EdgeKind.RefToOrigin)
 
+    def insert_local_call(self, call: LocalCall):
+        call_node = ScopeNode(
+            range=call.range,
+            name=call.name,
+            type=NodeKind.CALL,
+            data={"parameters": call.parameters},
+        )
+        call_idx = self.add_node(call_node)
+
+        # Find the reference node that matches the call name
+        ref_node = None
+        for node_idx, node_attrs in self._graph.nodes(data=True):
+            if (
+                node_attrs["type"] == NodeKind.REFERENCE
+                and node_attrs["name"] == call.name
+            ):
+                ref_node = node_idx
+                break
+
+        if not ref_node:
+            return
+
+        # Add an edge from the call to the reference
+        self._graph.add_edge(call_idx, ref_node, type=EdgeKind.CallToRef)
+
     # TODO: maybe we want to think about another class for sticking all these utility access methods
     def scopes(self) -> List[ScopeID]:
         """
@@ -176,15 +205,6 @@ class ScopeGraph:
             if attrs["type"] == EdgeKind.ImportToScope
         ]
 
-    def get_all_imports(self) -> List[ScopeNode]:
-        all_imports = []
-
-        scopes = self.scopes()
-        for scope in scopes:
-            all_imports.extend([self.get_node(i) for i in self.imports(scope)])
-
-        return all_imports
-
     def definitions(self, start: int) -> List[ScopeNode]:
         """
         Get all definitions in the scope and child scope
@@ -194,15 +214,6 @@ class ScopeGraph:
             for u, v, attrs in self._graph.in_edges(start, data=True)
             if attrs["type"] == EdgeKind.DefToScope
         ]
-
-    def get_all_definitions(self) -> List[ScopeNode]:
-        all_defs = []
-
-        scopes = self.scopes()
-        for scope in scopes:
-            all_defs.extend(self.definitions(scope))
-
-        return all_defs
 
     def references_by_origin(self, start: int) -> List[int]:
         """
@@ -234,25 +245,6 @@ class ScopeGraph:
                     return dst
         return None
 
-    # def scope_by_range(self, range: TextRange, start: ScopeID = None) -> ScopeID:
-    #     """
-    #     Returns the smallest child
-    #     """
-    #     print(f"Finding scope by range: {range.line_range()}")
-    #     node = self.get_node(start)
-    #     if node.range.contains_line(range):
-    #         print(f"Scope {node.range.line_range()} contains {range.line_range()}")
-    #         for child_id, attrs in [
-    #             (src, attrs)
-    #             for src, dst, attrs in self._graph.in_edges(start, data=True)
-    #             if attrs["type"] == EdgeKind.ScopeToScope
-    #         ]:
-    #             if child := self.scope_by_range(range, child_id):
-    #                 return child
-    #         return start
-
-    #     return None
-
     def scope_by_range(
         self, range: TextRange, start: ScopeID = None
     ) -> Optional[ScopeID]:
@@ -281,15 +273,6 @@ class ScopeGraph:
             stack += self.child_scope_stack(child)
 
         return stack
-
-    def get_leaf_children(self, start: ScopeID) -> Iterator[ScopeID]:
-        """
-        Finds all the leaf children reachable from the given scope
-        """
-        # Use DFS to find all reachable nodes
-        for node in dfs_postorder_nodes(self._graph, start):
-            if self._graph.out_degree(node) == 0:  # for directed graphs
-                yield node
 
     def parent_scope_stack(self, start: ScopeID):
         """

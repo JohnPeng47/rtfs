@@ -1,11 +1,9 @@
 import os
 import sys
 import fnmatch
-import dotenv
+import argparse
 
-from rtfs.moatless.summary.models import OpenAIModel, ModelArguments
-
-dotenv.load_dotenv()
+from rtfs.models import OpenAIModel, ModelArguments
 
 api_key = os.getenv("OPENAI_API_KEY")
 
@@ -26,7 +24,7 @@ def print_python_files_content(directory, exclude_patterns=None):
                     continue
                 matched += 1
 
-                files_content += f"File: {file_path}"
+                files_content += f"File: {file_path}\n"
                 with open(file_path, "r", encoding="utf-8") as f:
                     files_content += f.read()
                     files_content += "\n" + "=" * 40 + "\n"
@@ -53,15 +51,22 @@ def invoke(prompt, model="gpt4", dry_run=False):
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Print content of all Python files in a given directory."
     )
     parser.add_argument("repo_path", type=str, help="Path to the repository directory")
+    parser.add_argument(
+        "--output",
+        choices=["cost", "content"],
+        default="cost",
+        help="Output type: 'cost' to show estimated cost, 'content' to print file contents",
+    )
     args = parser.parse_args()
 
     content = print_python_files_content(args.repo_path, exclude_patterns=["alembic"])
-    _, cost = invoke(content, dry_run=True)
 
-    print("Total cost: ", cost)
+    if args.output == "content":
+        print(content)
+    else:  # args.output == "cost"
+        _, cost = invoke(content, dry_run=True)
+        print("Total cost: ", cost)

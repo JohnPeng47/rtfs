@@ -13,6 +13,7 @@ class NodeKind(str, Enum):
     DEFINITION = "LocalDef"
     IMPORT = "Import"
     REFERENCE = "Reference"
+    CALL = "Call"
 
 
 class EdgeKind(str, Enum):
@@ -22,6 +23,7 @@ class EdgeKind(str, Enum):
     RefToDef = "RefToDef"
     RefToOrigin = "RefToOrigin"
     RefToImport = "RefToImport"
+    CallToRef = "CallToRef"
 
 
 class ScopeNode(Node):

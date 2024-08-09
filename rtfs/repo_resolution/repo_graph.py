@@ -156,6 +156,7 @@ class RepoGraph:
         for imp in imports:
             export_file = self.fs.match_file(imp.namespace.to_path())
             if export_file:
+                # TODO: make this a PythonLang Extension
                 if "__init__.py" in str(export_file):
                     g = self.scopes_map[export_file]
                     init_imports = self._construct_import(g, export_file, self.fs)
@@ -194,10 +195,6 @@ class RepoGraph:
             sg = build_scope_graph(file_content, language=LANGUAGE)
             scope_map[path.resolve()] = sg
 
-            # print(path)
-
-            # print(f"File : {path.name}\n", sg.to_str())
-
         return scope_map
 
     # ultimately the output should be 3-tuple
@@ -213,17 +210,19 @@ class RepoGraph:
         third_party_modules_list = ThirdPartyModules(LANGUAGE)
 
         imports = []
-        for imp_node in g.get_all_imports():
-            imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
-            imp_blocks = import_stmt_to_import(
-                import_stmt=imp_stmt,
-                filepath=file,
-                g=g,
-                fs=fs,
-                sys_modules=sys_modules_list,
-                third_party_modules=third_party_modules_list,
-            )
-            imports.extend(imp_blocks)
+        for scope in g.scopes():
+            for imp in g.imports(scope):
+                imp_node = g.get_node(imp)
+                imp_stmt = LocalImportStmt(imp_node.range, **imp_node.data)
+                imp_blocks = import_stmt_to_import(
+                    import_stmt=imp_stmt,
+                    filepath=file,
+                    g=g,
+                    fs=fs,
+                    sys_modules=sys_modules_list,
+                    third_party_modules=third_party_modules_list,
+                )
+                imports.extend(imp_blocks)
 
         return imports
 
@@ -260,7 +259,6 @@ class RepoGraph:
         return repr
 
     def print_missing_imports(self):
-
         for path, missing_imports in self._missing_import_refs.items():
             total_missing = 0
             total_resolved = 0

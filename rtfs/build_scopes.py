@@ -1,7 +1,7 @@
 from typing import Dict, Optional, List
 from collections import defaultdict
 
-from rtfs.scope_resolution import LocalScope, LocalDef, Reference, Scoping
+from rtfs.scope_resolution import LocalScope, LocalDef, Reference, Scoping, LocalCall
 from rtfs.scope_resolution.imports import (
     LocalImportStmt,
     parse_from,
@@ -13,6 +13,7 @@ from rtfs.languages import LANG_PARSER
 from rtfs.scope_resolution.graph import ScopeGraph
 
 from rtfs.ts.capture_types import (
+    LocalCallCapture,
     LocalDefCapture,
     LocalRefCapture,
     LocalImportPartCapture,
@@ -35,6 +36,7 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
     local_import_stmt_capture_indices: List = []
     local_import_part_capture: Dict[int, LocalImportPartCapture] = defaultdict(list)
     local_import_relimport: List = []
+    local_call_captures: List[LocalCallCapture] = []
     # capture_id -> range map
     capture_map: Dict[int, TextRange] = {}
 
@@ -83,6 +85,8 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
             case ["local", "scope"]:
                 local_scope_capture_indices.append(i)
 
+            # TODO: clean up imports -> to make it more generic, currently
+            # very python centric
             case ["local", "import", "prefix"]:
                 local_import_relimport.append(local_import_stmt_capture_indices[-1])
 
@@ -90,10 +94,25 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
                 local_import_stmt_capture_indices.append(i)
 
             case ["local", "import", part]:
+                print(part, node.text.decode())
+
                 # assign part to the last import statement
                 part_index = local_import_stmt_capture_indices[-1]
                 l = LocalImportPartCapture(index=i, part=part)
                 local_import_part_capture[part_index].append(l)
+
+            case ["local", "call", *rest]:
+                if rest[0] == "name":
+                    current_call = LocalCallCapture(index=i, name=node.text.decode())
+                    local_call_captures.append(current_call)
+                elif rest[0] == "arg" and rest[1] == "parameter":
+                    if current_call:
+                        current_call.add_parameter(node.text.decode())
+
+                # NOTE: currently only capturing parameter and not keyword name
+                elif rest[0] == "kwarg" and rest[1] == "parameter":
+                    if current_call:
+                        current_call.add_parameter(node.text.decode())
 
     root_range = TextRange(
         start_byte=root_node.start_byte,
@@ -151,5 +170,11 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
         new_ref = Reference(range, src_bytes, symbol_id=symbol_id)
 
         scope_graph.insert_ref(new_ref)
+
+    # insert calls (depends on refs)
+    for call_capture in local_call_captures:
+        range = capture_map[call_capture.index]
+        local_call = LocalCall(range, call_capture.name, call_capture.parameters)
+        scope_graph.insert_local_call(local_call)
 
     return scope_graph

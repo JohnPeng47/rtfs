@@ -67,7 +67,6 @@ def import_stmt_to_import(
         root = import_stmt.from_name
         for name in import_stmt.names:
             namespaces += [NameSpace(root, child=name)]
-
     else:
         namespaces = [NameSpace(n) for n in import_stmt.names]
 

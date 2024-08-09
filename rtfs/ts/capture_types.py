@@ -1,8 +1,17 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
 from rtfs.scope_resolution import Scoping
+
+
+class LocalCallCapture(BaseModel):
+    index: int
+    name: str
+    parameters: List[str] = []
+
+    def add_parameter(self, value: str):
+        self.parameters.append(value)
 
 
 class LocalDefCapture(BaseModel):

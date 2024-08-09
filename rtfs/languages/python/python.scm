@@ -131,19 +131,14 @@
 
 ;; Capture regular and relative imports
 (import_from_statement
-  module_name: 
-    [
-      (dotted_name) @local.import.module
-      (relative_import
-        (import_prefix) @local.import.prefix
-        (dotted_name)? @local.import.module)
-    ]
-  name: 
-    [
-      ;; Single name or multiple names on one line
-      (dotted_name 
-        (identifier) @local.import.name)+
-    ]
+  ("from")
+  .
+  (dotted_name) @local.import.module
+  ("import")
+  (
+    (dotted_name) @local.import.name
+    (",")*
+  )*
 ) @local.import.statement
 
 
@@ -225,6 +220,18 @@
 (keyword_argument
   (_)
   (identifier) @local.reference)
+
+;; TODO: capture call types
+;; NOTE: currently ignoring keyword param name
+;; call capture
+(call
+  function: (identifier) @local.call.name
+  arguments: (argument_list
+    (identifier)+ @local.call.arg.parameter
+    (keyword_argument
+      name: (_)?
+      value: (identifier) @local.call.kwarg.parameter)+
+  )?)
 
 ;; (a, b, c)
 (tuple 
