@@ -1,9 +1,14 @@
-from pydantic import BaseModel
+from dataclasses import dataclass
+
+class DictMixin:
+    def dict(self):
+        return self.__dict__
+
+@dataclass
+class Node(DictMixin):
+    pass
 
 
-class Node(BaseModel):
-    id: str
-
-
-class Edge(BaseModel):
+@dataclass
+class Edge(DictMixin):
     pass

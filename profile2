@@ -1,0 +1,51 @@
+Profiling results for FileGraph.from_repo:
+         8645159 function calls (8467897 primitive calls) in 8.212 seconds
+
+   Ordered by: cumulative time
+   List reduced from 484 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    8.328    8.328 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\file_resolution\file_graph.py:36(from_repo)
+        1    0.000    0.000    5.564    5.564 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\file_resolution\file_graph.py:28(__init__)
+        1    0.004    0.004    5.530    5.530 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\repo_resolution\repo_graph.py:36(__init__)
+        1    0.014    0.014    3.650    3.650 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\repo_resolution\repo_graph.py:195(_construct_scopes)
+       79    0.207    0.003    3.586    0.045 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\build_scopes.py:29(build_scope_graph)
+      158    0.009    0.000    3.558    0.023 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\languages\python\python.py:8(_build_query)
+      158    3.369    0.021    3.369    0.021 {method 'query' of 'tree_sitter.Language' objects}
+        1    0.004    0.004    2.764    2.764 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\file_resolution\file_graph.py:42(_build_graph)
+       79    0.024    0.000    2.714    0.034 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\file_resolution\file_graph.py:54(_build_file_connections)
+       79    0.028    0.000    1.918    0.024 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\capture_refs.py:10(capture_refs)
+      148    0.010    0.000    1.327    0.009 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\repo_resolution\repo_graph.py:209(_construct_import)
+     1361    0.115    0.000    1.244    0.001 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\repo_resolution\imports.py:46(import_stmt_to_import)
+    36044    0.023    0.000    0.779    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:259(scope_by_range)
+    36044    0.085    0.000    0.756    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\interval_tree.py:32(contains)
+   339758    0.339    0.000    0.684    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:307(get_node)
+       79    0.004    0.000    0.632    0.008 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\repo_resolution\repo_graph.py:154(map_local_to_exports)
+    14220    0.050    0.000    0.561    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:128(insert_ref)
+    36044    0.023    0.000    0.559    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\intervaltree\intervaltree.py:1027(__getitem__)
+    36044    0.073    0.000    0.536    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\intervaltree\intervaltree.py:837(overlap)
+     1274    0.101    0.000    0.402    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\fs.py:44(match_file)
+    41901    0.197    0.000    0.353    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\utils.py:23(__init__)
+    21462    0.026    0.000    0.344    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:217(references_by_origin)
+      406    0.007    0.000    0.340    0.001 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\repo_resolution\repo_graph.py:237(_get_exports)
+216221/44632    0.200    0.000    0.312    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\intervaltree\node.py:309(search_point)
+      462    0.077    0.000    0.292    0.001 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:247(is_call_ref)
+     1108    0.004    0.000    0.276    0.000 C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.10_3.10.3056.0_x64__qbz5n2kfra8p0\lib\pathlib.py:1064(resolve)
+     2163    0.233    0.000    0.270    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:159(insert_local_call)
+      406    0.001    0.000    0.241    0.001 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:227(child_scopes)
+      406    0.080    0.000    0.238    0.001 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:231(<listcomp>)
+    21462    0.107    0.000    0.234    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:221(<listcomp>)
+     1108    0.008    0.000    0.205    0.000 C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.10_3.10.3056.0_x64__qbz5n2kfra8p0\lib\ntpath.py:667(realpath)
+    64982    0.020    0.000    0.193    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\pydantic\main.py:183(__init__)
+     5394    0.015    0.000    0.183    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\rtfs\scope_resolution\graph.py:76(insert_local_def)
+    64982    0.134    0.000    0.173    0.000 {method 'validate_python' of 'pydantic_core._pydantic_core.SchemaValidator' objects}
+   347877    0.130    0.000    0.168    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\networkx\classes\reportviews.py:790(<genexpr>)
+      158    0.166    0.001    0.166    0.001 {method 'parse' of 'tree_sitter.Parser' objects}
+     2216    0.163    0.000    0.163    0.000 {built-in method nt._getfinalpathname}
+   451186    0.116    0.000    0.154    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\networkx\classes\reportviews.py:873(<genexpr>)
+   343330    0.099    0.000    0.149    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\networkx\classes\reportviews.py:205(__call__)
+    40108    0.028    0.000    0.144    0.000 C:\Users\jpeng\Documents\projects\cowboy_baseline\.venv\lib\site-packages\networkx\classes\reportviews.py:1093(__call__)
+
+
+
+Runtime of the function: 8.331313848495483 seconds

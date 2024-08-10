@@ -55,7 +55,9 @@ class RepoFs:
                 if path.suffix == SRC_EXT:
                     return path.resolve()
                 elif path.is_dir():
-                    return (path / "__init__.py").resolve()
+                    init_path = (path / "__init__.py").resolve()
+                    if init_path.exists():
+                        return init_path
 
         return None
 

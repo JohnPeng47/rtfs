@@ -52,24 +52,9 @@ class TextRange(BaseModel):
             end_point=new_end_point,
         )
     
-    # def sub_offset(self, row_offset: int, column_offset: int):
-    #     new_start_point = Point(
-    #         self.start_point.row - row_offset,
-    #         self.start_point.column - column_offset,
-    #     )
-    #     new_end_point = Point(
-    #         self.end_point.row - row_offset,
-    #         self.end_point.column - column_offset,
-    #     )
-
-    #     return TextRange(
-    #         start_byte=self.start_byte,
-    #         end_byte=self.end_byte,
-    #         start_point=new_start_point,
-    #         end_point=new_end_point,
-    #     )
+    def __lt__(self, other: "TextRange"):
+        return self.contains_line(other)
     
-
     def line_range(self):
         return self.start_point.row, self.end_point.row
 
@@ -81,20 +66,20 @@ class TextRange(BaseModel):
 
         return range.start_byte >= self.start_byte and range.end_byte <= self.end_byte
 
-    def contains_line(self, range: "TextRange", overlap=False):
+    def contains_line(self, other: "TextRange", overlap=False):
         if overlap:
             # check that at least one of the points is within the range
             return (
-                range.start_point.row >= self.start_point.row
-                and range.start_point.row <= self.end_point.row
+                other.start_point.row >= self.start_point.row
+                and other.start_point.row <= self.end_point.row
             ) or (
-                range.end_point.row <= self.end_point.row
-                and range.end_point.row >= self.start_point.row
+                other.end_point.row <= self.end_point.row
+                and other.end_point.row >= self.start_point.row
             )
 
         return (
-            range.start_point.row >= self.start_point.row
-            and range.end_point.row <= self.end_point.row
+            other.start_point.row >= self.start_point.row
+            and other.end_point.row <= self.end_point.row
         )
 
 

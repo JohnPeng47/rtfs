@@ -1,11 +1,10 @@
-from rtfs.scope_resolution.graph import ScopeID
-from rtfs.graph import Node, Edge
 from enum import Enum
 from typing import NewType
 import os
+from dataclasses import dataclass
 
-from pydantic import root_validator
-
+from rtfs.scope_resolution.graph import ScopeID
+from rtfs.graph import Node, Edge
 
 RepoNodeID = NewType("RepoNodeID", str)
 
@@ -15,40 +14,28 @@ class RepoNodeType(str, Enum):
     Def = "Def"
 
 
+@dataclass(kw_only=True)
 class RepoNode(Node):
     id: RepoNodeID
-    name: str = None
     file_path: str = None
     scope: ScopeID = None
 
-    @root_validator(pre=True)
-    def validate_id(cls, values):
-        repo_id = values.get("id")
-        parts = repo_id.split("::")
-
-        if len(parts) != 2:
-            raise ValueError(f"Invalid repo_id format: {repo_id}")
-
-        filepath = parts[0]
-        name = filepath.split(os.sep)[-1]
-
-        values["name"] = name
-        values["file_path"] = filepath
-        values["scope"] = ScopeID(parts[1])
-        return values
+    @property
+    def name(self):
+        return f"{os.path.basename(self.file_path)}::{self.scope}"
 
     def __str__(self):
-        return f"{self.name}::{self.scope}"
+        return f"{self.name}"
 
 
 class EdgeKind(str, Enum):
     ImportToExport = "ImportToExport"
 
-
+@dataclass(kw_only=True)
 class RepoEdge(Edge):
     type: EdgeKind
 
-
+@dataclass(kw_only=True)
 class RefEdge(RepoEdge):
     type: EdgeKind = EdgeKind.ImportToExport
     ref: str

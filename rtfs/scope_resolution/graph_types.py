@@ -1,6 +1,6 @@
 from typing import Dict, Optional, NewType
 from enum import Enum
-from pydantic import root_validator
+from dataclasses import dataclass, field
 
 from rtfs.graph import Node
 from rtfs.utils import TextRange
@@ -26,14 +26,12 @@ class EdgeKind(str, Enum):
     CallToRef = "CallToRef"
 
 
+@dataclass(kw_only=True)
 class ScopeNode(Node):
-    # jank..
-    # TODO: NEED TO REMOVE THIS!!!
-    id: str = "".join(random.choices(string.ascii_letters, k=10))
     range: TextRange
     type: NodeKind
     name: Optional[str] = ""
-    data: Optional[Dict] = {}
+    data: Optional[Dict] = field(default_factory=dict)
 
 
 ScopeID = NewType("ScopeID", int)

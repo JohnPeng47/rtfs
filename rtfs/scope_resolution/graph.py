@@ -30,9 +30,9 @@ class ScopeGraph:
         self.root_idx = self.add_node(root_scope)
         self.scope2range[self.root_idx] = range
 
-        # lookup tables for speed
-        # map name to scopes
-        self.defn_dict = defaultdict(list)
+        # lookup tables for faster lookups, especially for references resolution
+        self.defn_dict: Dict[str, List[Tuple[TextRange, ScopeID]]] = defaultdict(list)
+        self.imp_dict: Dict[str, List[Tuple[TextRange, ScopeID]]] = defaultdict(list)
         
 
         # use this to faster resolve range -> scope queries
@@ -45,11 +45,11 @@ class ScopeGraph:
         parent_scope = self.scope_by_range(new.range, self.root_idx)
         if parent_scope is not None:
             new_node = ScopeNode(range=new.range, type=NodeKind.SCOPE)
-            new_id = self.add_node(new_node)
-            self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ScopeToScope)
-            self._ig.add_scope(new.range, new_id)
+            new_idx = self.add_node(new_node)
+            self._graph.add_edge(new_idx, parent_scope, type=EdgeKind.ScopeToScope)
+            self._ig.add_scope(new.range, new_idx)
 
-            self.scope2range[new_id] = new.range
+            self.scope2range[new_idx] = new.range
 
     def insert_local_import(self, new: LocalImportStmt):
         """
@@ -67,9 +67,11 @@ class ScopeGraph:
                     "relative": new.relative,
                 },
             )
+            new_idx = self.add_node(new_node)
+            self._graph.add_edge(new_idx, parent_scope, type=EdgeKind.ImportToScope)
 
-            new_id = self.add_node(new_node)
-            self._graph.add_edge(new_id, parent_scope, type=EdgeKind.ImportToScope)
+            for names in new.names:
+                self.imp_dict[names].append((new.range, new_idx))    
 
     def insert_local_def(self, new: LocalDef) -> None:
         """
@@ -86,13 +88,14 @@ class ScopeGraph:
             new_idx = self.add_node(new_def)
             self._graph.add_edge(new_idx, defining_scope, type=EdgeKind.DefToScope)
 
+            self.defn_dict[new.name].append((new.range, new_idx))
+
     def insert_hoisted_def(self, new: LocalDef) -> None:
         """
         Insert a def into the scope-graph, at the parent scope of the defining scope
         """
-        defining_scope = self.scope_by_range(new.range, self.root_idx)
+        defining_scope = self.scope_by_range((new.range, self.root_idx))
         if defining_scope is not None:
-            def_type = new.symbol
             new_def = ScopeNode(
                 range=new.range,
                 name=new.name,
@@ -104,8 +107,9 @@ class ScopeGraph:
             # insert into the defining scope
             parent_scope = self.parent_scope(defining_scope)
             target_scope = parent_scope if parent_scope is not None else defining_scope
-
             self._graph.add_edge(new_idx, target_scope, type=EdgeKind.DefToScope)
+            
+            self.defn_dict[new.name].append((new.range, new_idx))
 
     def insert_global_def(self, new: LocalDef) -> None:
         """
@@ -119,47 +123,34 @@ class ScopeGraph:
         new_idx = self.add_node(new_def)
         self._graph.add_edge(new_idx, self.root_idx, type=EdgeKind.DefToScope)
 
+        self.defn_dict[new.name].append((new.range, new_idx))
+
     def insert_ref(self, new: Reference) -> None:
         possible_defs = []
         possible_imports = []
 
         local_scope_idx = self.scope_by_range(new.range, self.root_idx)
+
+        # find the minimum enclosing/closest parent scope
         if local_scope_idx is not None:
-            # traverse the scopes from the current-scope to the root-scope
-            for scope in self.parent_scope_stack(local_scope_idx):
-
-                # find candidate definitions in each scope
-                for local_def in [
-                    src
-                    for src, dst, attrs in self._graph.in_edges(scope, data=True)
-                    if attrs["type"] == EdgeKind.DefToScope
-                ]:
-                    def_node = self.get_node(local_def)
-                    if def_node.type == NodeKind.DEFINITION:
-                        if new.name == def_node.name:
-                            possible_defs.append((local_def, def_node.name))
-                            break  # ensure that we add the first definition in the nearest ancestor scope
-
-                # find candidate imports in each scope
-                # TODO: fix this for new import names format
-                for local_import in [
-                    src
-                    for src, dst, attrs in self._graph.in_edges(scope, data=True)
-                    if attrs["type"] == EdgeKind.ImportToScope
-                ]:
-                    import_node = self.get_node(local_import)
-                    if import_node.type == NodeKind.IMPORT:
-                        if new.name in import_node.data["names"]:
-                            possible_imports.append((local_import, import_node.name))
+            defs = self.defn_dict.get(new.name, [])
+            if defs:
+                # print("Found ref: ", new.name)
+                possible_defs.append(min(defs, key=lambda x: x[0]))
+            
+            imports = self.imp_dict.get(new.name, [])
+            if imports:
+                # print("Found ref import: ", new.name)
+                possible_imports.append(min(imports, key=lambda x: x[0]))
 
         if possible_defs or possible_imports:
             new_ref = ScopeNode(range=new.range, name=new.name, type=NodeKind.REFERENCE)
             ref_idx = self.add_node(new_ref)
 
-            for def_idx, _ in possible_defs:
+            for _, def_idx in possible_defs:
                 self._graph.add_edge(ref_idx, def_idx, type=EdgeKind.RefToDef)
 
-            for imp_idx, _ in possible_imports:
+            for _, imp_idx in possible_imports:
                 self._graph.add_edge(ref_idx, imp_idx, type=EdgeKind.RefToImport)
 
             # add an edge back to the originating scope of the reference

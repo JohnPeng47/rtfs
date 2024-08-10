@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, Tuple, NewType
+from typing import Any, List, Dict, Tuple
 from pathlib import Path
 from networkx import DiGraph
 
@@ -7,10 +7,10 @@ from rtfs.scope_resolution.graph import ScopeGraph
 from rtfs.scope_resolution.graph_types import ScopeID
 from rtfs.build_scopes import build_scope_graph
 from rtfs.scope_resolution import LocalImportStmt
-from rtfs.utils import SysModules, ThirdPartyModules, TextRange
+from rtfs.utils import SysModules, ThirdPartyModules
 from rtfs.config import LANGUAGE
 
-from .imports import NameSpace, LocalImport, ModuleType, import_stmt_to_import
+from .imports import LocalImport, ModuleType, import_stmt_to_import
 from .graph_type import EdgeKind, RepoNode, RepoNodeID, RefEdge
 
 from collections import defaultdict
@@ -76,25 +76,27 @@ class RepoGraph:
                     # establish an edge between all refs from all local scopes to the
                     # def scope in import_file
                     for ref_scope in imp.ref_scopes:
-                        # create nodes and edges
+
                         ref_node_id = repo_node_id(path, ref_scope)
                         ref_node = self.get_node(ref_node_id)
                         if not ref_node:
+                            ref_node = RepoNode(id=ref_node_id, file_path=path, scope=ref_scope)
                             self.total_scopes.add(ref_node_id)
-                            self.add_node(ref_node_id)
+                            self.add_node(ref_node)
 
-                        self._missing_import_refs[path] = [
-                            ref
-                            for ref in self._missing_import_refs[path]
-                            if ref != str(imp.namespace)
-                        ]
-                        self._resolved_import_refs[path].append(name)
+                        # self._missing_import_refs[path] = [
+                        #     ref
+                        #     for ref in self._missing_import_refs[path]
+                        #     if ref != str(imp.namespace)
+                        # ]
+                        # self._resolved_import_refs[path].append(name)
 
                         imp_node_id = repo_node_id(export_file, def_scope)
                         imp_node = self.get_node(imp_node_id)
                         if not imp_node:
-                            self.total_scopes.add(ref_node_id)
-                            self.add_node(imp_node_id)
+                            imp_node = RepoNode(id=imp_node_id, file_path=export_file, scope=def_scope)
+                            self.total_scopes.add(imp_node_id)
+                            self.add_node(imp_node)
 
                         self.add_edge(
                             ref_node_id,
@@ -110,8 +112,7 @@ class RepoGraph:
 
         return RepoNode(**node)
 
-    def add_node(self, node_id: RepoNodeID):
-        node = RepoNode(id=node_id)
+    def add_node(self, node: RepoNode):
         self._graph.add_node(node.id, **node.dict())
 
     def add_edge(
