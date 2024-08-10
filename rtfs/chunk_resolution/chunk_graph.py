@@ -1,4 +1,4 @@
-from networkx import DiGraph, node_link_graph, node_link_data
+from networkx import MultiDiGraph, node_link_graph, node_link_data
 from pathlib import Path
 from llama_index.core.schema import BaseNode
 from typing import List, Tuple, Dict
@@ -45,7 +45,7 @@ class ChunkGraph:
     def __init__(
         self,
         repo_path: Path,
-        g: DiGraph,
+        g: MultiDiGraph,
         cluster_roots=[],
         cluster_depth=None,
     ):
@@ -69,7 +69,7 @@ class ChunkGraph:
         the list of scopes, and then using the scope -> scope mapping provided in RepoGraph
         to resolve the exports
         """
-        g = DiGraph()
+        g = MultiDiGraph()
         cg: ChunkGraph = cls(repo_path, g)
         cg._file2scope = defaultdict(set)
 
@@ -178,38 +178,34 @@ class ChunkGraph:
 
         for ref in chunk_refs:
             # align ref with chunks offset
-            ref.range = ref.range.add_offset(chunk_node.metadata.start_line, chunk_node.metadata.start_line)
+            ref.range = ref.range.add_offset(
+                chunk_node.metadata.start_line, chunk_node.metadata.start_line
+            )
             # range -> scope
             ref_scope = scope_graph.scope_by_range(ref.range)
             # scope (import) -> scope (export)
-            export_scopes = self._repo_graph.import_to_export_scope(
+            export = self._repo_graph.import_to_export_scope(
                 repo_node_id(src_path, ref_scope), ref.name
             )
-            # scope -> range -> chunk
-            # decision:
-            # 1. can resolve range here using the scope
-            # 2. can resolve range when RepoNode is constructed
-            # Favor 1. since we can use repo_graph for both scope->range and range->scope
-            for export_file, export_scope, export_sg in [
-                (
-                    node.file_path,
-                    node.scope,
-                    self._repo_graph.scopes_map[Path(node.file_path)],
-                )
-                for node in export_scopes
-            ]:
-                export_range = export_sg.range_by_scope(export_scope)
-                dst_chunk = self.find_chunk(Path(export_file), export_range)
+            # TODO: this would be alot better if we could search using
+            # existing ts queries cuz we can narrow to import refs
+            if not export:
+                # print(f"Unmatched ref: {ref.name} in {src_path}")
+                continue
 
-                if dst_chunk:
-                    if scope_graph.is_call_ref(ref.range):
-                        call_edge = CallEdge(ref=ref.name)
-                        self.add_edge(chunk_node.id, dst_chunk.id, call_edge)
-                                            
-                    # differentiate between ImportToExport chunks and CallToExport chunks
-                    # so in the future we can use this for file level edges
-                    ref_edge = ImportEdge(ref=ref.name)
-                    self.add_edge(chunk_node.id, dst_chunk.id, ref_edge)
+            export_sg = self._repo_graph.scopes_map[Path(export.file_path)]
+            export_range = export_sg.range_by_scope(export.scope)
+            dst_chunk = self.find_chunk(Path(export.file_path), export_range)
+            if dst_chunk:
+                if scope_graph.is_call_ref(ref.range):
+                    call_edge = CallEdge(ref=ref.name)
+                    print("adding call edge: ", call_edge.dict())
+                    self.add_edge(chunk_node.id, dst_chunk.id, call_edge)
+
+                # differentiate between ImportToExport chunks and CallToExport chunks
+                # so in the future we can use this for file level edges
+                ref_edge = ImportEdge(ref=ref.name)
+                self.add_edge(chunk_node.id, dst_chunk.id, ref_edge)
 
     # TODO: should really use IntervalGraph here but chunks are small enough
     def find_chunk(self, file_path: Path, range: TextRange):
@@ -295,7 +291,9 @@ class ChunkGraph:
                     self.add_node(child_node)
 
                 self.add_edge(
-                    child_id, parent_id, ClusterEdge(kind=ClusterEdgeKind.ClusterToCluster)
+                    child_id,
+                    parent_id,
+                    ClusterEdge(kind=ClusterEdgeKind.ClusterToCluster),
                 )
 
                 if i > max_cluster_depth:

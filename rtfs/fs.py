@@ -32,8 +32,12 @@ class RepoFs:
     def get_file_range(self, path: Path, range: TextRange) -> bytes:
         if path.suffix == SRC_EXT:
             if range:
-                return "\n".join(path.read_text().split("\n")[range.start_point.row : range.end_point.row])
-            
+                return "\n".join(
+                    path.read_text().split("\n")[
+                        range.start_point.row : range.end_point.row
+                    ]
+                )
+
     # TODO: need to account for relative paths
     # we miss the following case:
     # - import a => will match any file in the repo that ends with "a"

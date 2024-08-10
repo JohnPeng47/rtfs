@@ -122,7 +122,7 @@ class ScopeGraph:
         if local_scope_idx is not None:
             # traverse the scopes from the current-scope to the root-scope
             for scope in self.parent_scope_stack(local_scope_idx):
-                
+
                 # find candidate definitions in each scope
                 for local_def in [
                     src
@@ -302,7 +302,7 @@ class ScopeGraph:
         id = self._node_counter
         if node.dict() == {} or all(value is None for value in node.dict().values()):
             raise Exception("empty node")
-        
+
         self._graph.add_node(id, **node.dict())
         self._node_counter += 1
 

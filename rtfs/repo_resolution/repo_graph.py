@@ -129,18 +129,24 @@ class RepoGraph:
             if v == exp_node_id
         ]
 
-    def import_to_export_scope(
-        self, ref_node_id: RepoNodeID, ref: str
-    ) -> List[RepoNode]:
+    def import_to_export_scope(self, ref_node_id: RepoNodeID, ref: str) -> RepoNode:
         """
         Returns the export (def) scopes that are tied to the import (ref) scope
         """
 
-        return [
+        possible_exports = [
             self.get_node(v)
             for _, v, attrs in self._graph.edges(ref_node_id, data=True)
             if attrs["type"] == EdgeKind.ImportToExport and attrs["ref"] == ref
         ]
+
+        if not possible_exports:
+            return []
+
+        if len(possible_exports) > 1:
+            print("WTF ...")
+
+        return possible_exports[0]
 
     # TODO: make this language dependent function implemented outside of
     # repo_graph
