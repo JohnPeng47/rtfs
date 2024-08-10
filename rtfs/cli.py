@@ -1,11 +1,12 @@
 from pathlib import Path
 import os
-from typing import Dict
+from typing import Dict, List
 import mimetypes
 import fnmatch
 import json
 import importlib.resources as pkg_resources
 import asyncio
+from networkx import MultiDiGraph
 
 from llama_index.core import SimpleDirectoryReader
 
@@ -67,25 +68,76 @@ def ingest(repo_path: str) -> ChunkGraph:
 import time
 
 
+# untuned implementation could be really expensive
+# need to do this at
+def construct_edge_series(graph: MultiDiGraph):
+    edge_series = []
+    visited_edges = set()
+
+    def is_call_to_edge(node, neighbor):
+        return any(
+            [
+                True
+                for _, v, attrs in graph.out_edges(node, data=True)
+                if v == neighbor and attrs["kind"] == "CallTo"
+            ]
+        )
+
+    def dfs_edge(current_node, path):
+        for neighbor in graph.successors(current_node):
+            if is_call_to_edge(current_node, neighbor):
+                edge = (current_node, neighbor)
+                if edge not in visited_edges:
+                    visited_edges.add(edge)
+                    new_path = path + [neighbor]
+
+                    # If the neighbor has no other unvisited outgoing 'CallTo' edges, add the path
+                    if all(
+                        (neighbor, n) in visited_edges
+                        or not is_call_to_edge(neighbor, n)
+                        for n in graph.successors(neighbor)
+                    ):
+                        edge_series.append(new_path)
+                    else:
+                        dfs_edge(neighbor, new_path)
+
+    # Start DFS from each node that has unvisited outgoing 'CallTo' edges
+    for node in graph.nodes():
+        if any(
+            (node, neighbor) not in visited_edges and is_call_to_edge(node, neighbor)
+            for neighbor in graph.successors(node)
+        ):
+            dfs_edge(node, [node])
+
+    return edge_series
+
+
 async def main(repo_path, saved_graph_path: Path):
     start_time = time.time()
-
     graph_dict = {}
+
     if saved_graph_path.exists():
         with open(saved_graph_path, "r") as f:
-            # print(f"Loading from saved data .. {saved_graph_path.resolve()}")
             graph_dict = json.loads(f.read())
 
     if graph_dict:
         cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
+        for u, v, attrs in cg._graph.edges(data=True):
+            if attrs["kind"] == "CallToExport":
+                print(u, v)
 
-        output = json.dumps(cg.clusters_to_json())
+        # output = json.dumps(cg.clusters_to_json())
+        print("hello")
+        for calls in construct_edge_series(cg._graph):
+            print(len(calls))
+
+        # print(cg.clusters_to_str())
 
     else:
         cg = ingest(repo_path)
         cg.cluster()
 
-        await cg.summarize(user_confirm=True)
+        # await cg.summarize(user_confirm=True)
 
         graph_dict = cg.to_json()
         with open(saved_graph_path, "w") as f:
@@ -93,7 +145,7 @@ async def main(repo_path, saved_graph_path: Path):
 
         output = json.dumps(cg.clusters_to_json())
 
-    print(output)
+    # print(output)
 
     end_time = time.time()
     print(f"Runtime of the function: {end_time - start_time} seconds")

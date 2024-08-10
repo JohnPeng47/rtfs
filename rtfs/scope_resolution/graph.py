@@ -122,6 +122,7 @@ class ScopeGraph:
         if local_scope_idx is not None:
             # traverse the scopes from the current-scope to the root-scope
             for scope in self.parent_scope_stack(local_scope_idx):
+
                 # find candidate definitions in each scope
                 for local_def in [
                     src
@@ -164,27 +165,29 @@ class ScopeGraph:
             range=call.range,
             name=call.name,
             type=NodeKind.CALL,
-            data={"parameters": call.parameters},
+            # data={"parameters": call.parameters},
         )
         call_idx = self.add_node(call_node)
 
         # Find the reference node that matches the call name
-        ref_node = None
-        for node_idx, node_attrs in self._graph.nodes(data=True):
+        found = False
+        for ref_idx, node_attrs in self._graph.nodes(data=True):
             if (
                 node_attrs["type"] == NodeKind.REFERENCE
                 and node_attrs["name"] == call.name
             ):
-                ref_node = node_idx
-                break
+                ref_node = self.get_node(ref_idx)
+                if call_node.range.contains_line(ref_node.range):
+                    found = True
+                    break
 
-        if not ref_node:
+        if not found:
+            # print(f"Could not find reference for call {call.name}")
             return
 
-        # Add an edge from the call to the reference
-        self._graph.add_edge(call_idx, ref_node, type=EdgeKind.CallToRef)
+        # Add an edge from the call to the refeaddrenc
+        self._graph.add_edge(call_idx, ref_idx, type=EdgeKind.CallToRef)
 
-    # TODO: maybe we want to think about another class for sticking all these utility access methods
     def scopes(self) -> List[ScopeID]:
         """
         Return all scopes in the graph
@@ -245,6 +248,18 @@ class ScopeGraph:
                     return dst
         return None
 
+    def is_call_ref(self, range: TextRange) -> bool:
+        """
+        Checks that the call range matches the ref range
+        """
+        for node, attrs in self._graph.nodes(data=True):
+            if attrs["type"] == NodeKind.REFERENCE:
+                ref_node = self.get_node(node)
+                if range.contains_line(ref_node.range):
+                    return True
+
+        return False
+
     def scope_by_range(
         self, range: TextRange, start: ScopeID = None
     ) -> Optional[ScopeID]:
@@ -285,8 +300,10 @@ class ScopeGraph:
         Adds node and increments node_counter for its id
         """
         id = self._node_counter
-        self._graph.add_node(id, **node.dict())
+        if node.dict() == {} or all(value is None for value in node.dict().values()):
+            raise Exception("empty node")
 
+        self._graph.add_node(id, **node.dict())
         self._node_counter += 1
 
         return id

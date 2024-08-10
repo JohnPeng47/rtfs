@@ -81,16 +81,23 @@ class ClusterNode(Node):
         return sum([ord(c) for c in self.id])
 
 
-class EdgeKind(str, Enum):
-    ImportToExport = "ImportToExport"
+class ClusterEdgeKind(str, Enum):
+    ChunkToChunk = "ChunkToChunk"
     ClusterToCluster = "ClusterToCluster"
-    NodeToCluster = "NodeToCluster"
+    ChunkToCluster = "ChunkToCluster"
 
+class ChunkEdgeKind(str, Enum):
+    ImportFrom = "ImportFrom"
+    CallTo = "CallTo"
 
 class ImportEdge(Edge):
-    kind: EdgeKind
+    kind: ChunkEdgeKind = ChunkEdgeKind.ImportFrom
+    ref: str
+
+class CallEdge(Edge):
+    kind: ChunkEdgeKind = ChunkEdgeKind.CallTo
     ref: str
 
 
 class ClusterEdge(Edge):
-    kind: Literal[EdgeKind.ClusterToCluster, EdgeKind.NodeToCluster]
+    kind: Literal[ClusterEdgeKind.ClusterToCluster, ClusterEdgeKind.ChunkToCluster]
