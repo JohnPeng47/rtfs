@@ -8,11 +8,16 @@ import importlib.resources as pkg_resources
 import asyncio
 from networkx import MultiDiGraph
 
+import cProfile
+
+
 from llama_index.core import SimpleDirectoryReader
 
 from rtfs.moatless.epic_split import EpicSplitter
 from rtfs.moatless.settings import IndexSettings
 from rtfs.chunk_resolution.chunk_graph import ChunkGraph
+
+from rtfs.file_resolution.file_graph import FileGraph
 
 
 GRAPH_FOLDER = pkg_resources.files("rtfs") / "graphs"
@@ -113,37 +118,60 @@ def construct_edge_series(graph: MultiDiGraph):
 
 
 async def main(repo_path, saved_graph_path: Path):
+    import cProfile
+    import pstats
+    import io
+    from pstats import SortKey
+    import time
+    from pathlib import Path
+
     start_time = time.time()
     graph_dict = {}
 
-    if saved_graph_path.exists():
-        with open(saved_graph_path, "r") as f:
-            graph_dict = json.loads(f.read())
+    # Profile FileGraph.from_repo
+    pr = cProfile.Profile()
+    pr.enable()
+    
+    fg = FileGraph.from_repo(Path(repo_path))
+    
+    pr.disable()
+    
+    # Print profiling results
+    s = io.StringIO()
+    ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE)
+    ps.print_stats(40)  # Print top 20 lines
+    print("Profiling results for FileGraph.from_repo:")
+    print(s.getvalue())
 
-    if graph_dict:
-        cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
-        for u, v, attrs in cg._graph.edges(data=True):
-            if attrs["kind"] == "CallToExport":
-                print(u, v)
 
-        # output = json.dumps(cg.clusters_to_json())
-        print("hello")
-        for calls in construct_edge_series(cg._graph):
-            print(len(calls))
+    # if saved_graph_path.exists():
+    #     with open(saved_graph_path, "r") as f:
+    #         graph_dict = json.loads(f.read())
 
-        # print(cg.clusters_to_str())
+    # if graph_dict:
+    #     cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
+    #     for u, v, attrs in cg._graph.edges(data=True):
+    #         if attrs["kind"] == "CallToExport":
+    #             print(u, v)
 
-    else:
-        cg = ingest(repo_path)
-        cg.cluster()
+    #     # output = json.dumps(cg.clusters_to_json())
+    #     print("hello")
+    #     for calls in construct_edge_series(cg._graph):
+    #         print(len(calls))
 
-        # await cg.summarize(user_confirm=True)
+    #     # print(cg.clusters_to_str())
 
-        graph_dict = cg.to_json()
-        with open(saved_graph_path, "w") as f:
-            f.write(json.dumps(graph_dict))
+    # else:
+    #     cg = ingest(repo_path)
+    #     cg.cluster()
 
-        output = json.dumps(cg.clusters_to_json())
+    #     # await cg.summarize(user_confirm=True)
+
+    #     graph_dict = cg.to_json()
+    #     with open(saved_graph_path, "w") as f:
+    #         f.write(json.dumps(graph_dict))
+
+    #     output = json.dumps(cg.clusters_to_json())
 
     # print(output)
 

@@ -131,14 +131,26 @@
 
 ;; Capture regular and relative imports
 (import_from_statement
-  ("from")
-  .
-  (dotted_name) @local.import.module
-  ("import")
-  (
-    (dotted_name) @local.import.name
-    (",")*
-  )*
+  module_name: 
+    [
+      (dotted_name) @local.import.module
+      (relative_import
+        (import_prefix) @local.import.prefix
+        (dotted_name)? @local.import.module)
+    ]
+  name: 
+    [
+      ;; Single name or multiple names
+      (dotted_name) @local.import.name
+      ;; Capture all parts of dotted names
+      (dotted_name 
+        (identifier) @local.import.name.part)+
+      ;; Capture individual identifiers in a tuple of names
+      (aliased_import
+        .
+        (identifier) @local.import.name
+        ("," (identifier) @local.import.name)*)
+    ]
 ) @local.import.statement
 
 

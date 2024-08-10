@@ -30,6 +30,11 @@ class ScopeGraph:
         self.root_idx = self.add_node(root_scope)
         self.scope2range[self.root_idx] = range
 
+        # lookup tables for speed
+        # map name to scopes
+        self.defn_dict = defaultdict(list)
+        
+
         # use this to faster resolve range -> scope queries
         self._ig = IntervalGraph(range, self.root_idx)
 
