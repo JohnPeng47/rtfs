@@ -26,7 +26,7 @@ The summarization will cost $0.023670999999999998 and use 23671 tokens. Do you w
 
 # Get json output
 ```
-rtfs chunk-graph tests\cowboy-server\ --output-format json --output-file json- 
+rtfs chunk-graph tests\cowboy-server\ --output-format json --output-file output.json
 ```
 
 # Sample output
