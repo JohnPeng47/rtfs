@@ -1,5 +1,6 @@
 *.pyc
-*.json
+./*.json
+
 output.txt
 tests/repos/*
 output*

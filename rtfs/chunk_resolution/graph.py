@@ -13,7 +13,7 @@ ChunkNodeID = NewType("ChunkNodeID", str)
 ClusterID = NewType("ClusterID", str)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ChunkMetadata:
     file_path: str
     file_name: str
@@ -30,7 +30,7 @@ class NodeKind(str, Enum):
     Chunk = "Chunk"
     Cluster = "Cluster"
 
-
+@dataclass(kw_only=True)
 class ChunkNode(Node):
     id: ChunkNodeID
     og_id: str  # original ID on the BaseNode
@@ -68,7 +68,7 @@ class ChunkNode(Node):
     def get_content(self):
         return self.content
 
-
+@dataclass(kw_only=True)
 class ClusterNode(Node):
     id: ClusterID
     kind: NodeKind = NodeKind.Cluster
@@ -90,14 +90,16 @@ class ChunkEdgeKind(str, Enum):
     ImportFrom = "ImportFrom"
     CallTo = "CallTo"
 
+@dataclass(kw_only=True)
 class ImportEdge(Edge):
     kind: ChunkEdgeKind = ChunkEdgeKind.ImportFrom
     ref: str
 
+@dataclass(kw_only=True)
 class CallEdge(Edge):
     kind: ChunkEdgeKind = ChunkEdgeKind.CallTo
     ref: str
 
-
+@dataclass(kw_only=True)
 class ClusterEdge(Edge):
     kind: Literal[ClusterEdgeKind.ClusterToCluster, ClusterEdgeKind.ChunkToCluster]

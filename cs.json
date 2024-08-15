@@ -1,0 +1,619 @@
+[
+  {
+    "title": "FastAPI Application Setup and Middleware Configuration",
+    "keywords": [
+      "app",
+      "init_sentry",
+      "not_found",
+      "CORSMiddleware"
+    ],
+    "summary": "This code sets up a FastAPI application with various middleware configurations, exception handling, and routing for different service modules such as authorization, task queue, and health checks. It initializes external services like Sentry for error monitoring and configures CORS middleware to allow requests from any origin. Request context management is included to generate and fetch unique request IDs. Additionally, custom exception handlers and a basic 404 handler are defined to manage unexpected routes.",
+    "chunks": [
+      {
+        "id": "cowboy-server/main.py#48.104",
+        "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\main.py"
+      },
+      {
+        "id": "extensions/sentry.py#98.14",
+        "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\extensions\\sentry.py"
+      }
+    ],
+    "children": []
+  },
+  {
+    "title": "Enhanced Test Coverage with ML-Generated Prompts",
+    "keywords": [
+      "ExceptionMiddleware",
+      "CowboyRunTimeException",
+      "Composer",
+      "AugmentAdditiveEvaluator"
+    ],
+    "summary": "This feature is designed to enhance unit test coverage by leveraging large language models (LLMs) to automatically generate and extend test cases. It employs a strategy pattern with various concrete implementations to create augmented test prompts, ensuring comprehensive coverage of the source code files targeted by test modules. The `Composer` class orchestrates the process, while different strategies like `AugmentClassWithCtxtStrat` and `AugmentModuleMissing` fetch context from source code and identify uncovered lines to create prompts for improving test cases. The utility functions, including token counting and exception handling classes like `ExceptionMiddleware`, support this process by structuring the prompts and managing errors effectively.",
+    "chunks": [],
+    "children": [
+      {
+        "title": "Exception Handling Middleware",
+        "keywords": [
+          "ExceptionMiddleware",
+          "dispatch",
+          "ValidationError",
+          "CowboyRunTimeException"
+        ],
+        "summary": "This feature introduces a middleware class, `ExceptionMiddleware`, designed to handle various exceptions that might occur during the processing of HTTP requests. It catches specific exceptions such as `ValidationError`, `ValueError`, and a custom `CowboyRunTimeException`, logging the errors and returning appropriate JSON responses with detailed error messages. The feature also includes the definition of the custom exception class `CowboyRunTimeException` and initializes a registry for tokens.",
+        "chunks": [
+          {
+            "id": "cowboy-server/main.py#49.47",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\main.py"
+          },
+          {
+            "id": "src/exceptions.py#89.7",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\exceptions.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Automated Test Generation and Evaluation",
+        "keywords": [
+          "Composer",
+          "gen_test_serial_additive",
+          "generate_test",
+          "StratResult"
+        ],
+        "summary": "The provided chunks of code relate to the automated generation and evaluation of test cases using machine learning models. The `Composer` class orchestrates this process, offering functionalities to generate test cases either serially or in parallel depending on the type of evaluator used (`AugmentAdditiveEvaluator` or `AugmentParallelEvaluator`). The method `gen_test_serial_additive` involves generating test cases in a loop, invoking a language model for code suggestions, and evaluating the generated tests to update and improve them iteratively. Other classes and functions included provide supporting roles, such as defining structures for results (`StratResult`), handling exceptions, and utility functions like token counting in a string.\n",
+        "chunks": [
+          {
+            "id": "augment_test/composer.py#157.75",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\composer.py"
+          },
+          {
+            "id": "augment_test/types.py#177.39",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\types.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Augmenting Test Coverage with LLM-Powered Strategies",
+        "keywords": [
+          "LLMResAppend",
+          "AugmentTestStrategy",
+          "AugmentClassStrat",
+          "build_prompt"
+        ],
+        "summary": "This set of code focuses on augmenting test coverage for modules using large language models (LLMs). It introduces a strategy pattern with different concrete implementations to generate and extend test cases. The core components comprise a base strategy class for foundational operations, an extension for appending new test content, and a specialized class for building prompts dynamically. The strategies leverage functionalities from various utilities and data structures to fetch, manipulate, and enhance test code, aiming to increase overall code coverage.",
+        "chunks": [
+          {
+            "id": "strats/augment_base.py#168.41",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\strats\\augment_base.py"
+          },
+          {
+            "id": "strats/augment_strat.py#170.45",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\strats\\augment_strat.py"
+          },
+          {
+            "id": "strats/prompt.py#173.31",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\strats\\prompt.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Context-Aware Test Prompt Generation Strategy",
+        "keywords": [
+          "AugmentClassWithCtxtStrat",
+          "build_prompt",
+          "get_test_code",
+          "AugmentTestPromptWithCtxt"
+        ],
+        "summary": "This set of code implements a strategy for creating augmented test prompts that include context from the source code files targeted by a test module. The `AugmentClassWithCtxtStrat` class, which extends `AugmentTestStrategy`, is designed to fetch the current source control commit, extract relevant test code, and include additional source file content to create a comprehensive prompt. The `AugmentTestPromptWithCtxt` class facilitates structured prompt creation, ensuring that the test code and associated source file contents are appropriately integrated for enhancing unit test cases.",
+        "chunks": [
+          {
+            "id": "strats/augment_with_ctxt_file.py#171.50",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\strats\\augment_with_ctxt_file.py"
+          },
+          {
+            "id": "strats/prompt.py#174.28",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\strats\\prompt.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Augmenting Unit Test Coverage for Missing Lines",
+        "keywords": [
+          "AugmentModuleMissing",
+          "build_prompt",
+          "AugmentTestPromptMiss",
+          "gen_enumerated_code_str"
+        ],
+        "summary": "These code chunks comprise a functionality aimed at augmenting unit tests by focusing on the lines that are uncovered or missing from the test coverage. The `AugmentModuleMissing` class extends the base `AugmentTestStrategy` and is responsible for building a prompt that includes the current test code, the source files, and specifically the lines of code that are currently not covered by any tests. This prompt is then processed to improve and extend the test cases, thereby increasing code coverage. The `AugmentTestPromptMiss` class formats the input and output for this functionality, generating a structured template that the augmented test cases should follow.",
+        "chunks": [
+          {
+            "id": "strats/augment_with_missing.py#172.42",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\strats\\augment_with_missing.py"
+          },
+          {
+            "id": "strats/prompt.py#175.36",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\strats\\prompt.py"
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "title": "Comprehensive Management of Test Modules, AST Nodes, and Code Coverage",
+    "keywords": [
+      "NodeModel",
+      "CoverageModel",
+      "TargetCodeModel",
+      "TestModuleModel"
+    ],
+    "summary": "This feature provides a robust system for managing and enhancing test modules, Abstract Syntax Tree (AST) nodes, and code coverage within a software project. It defines SQLAlchemy models such as `NodeModel`, `CoverageModel`, `TargetCodeModel`, and `TestModuleModel` to encapsulate different aspects of these components. The `AugmentTestResult` class and various utility functions streamline database operations for node and coverage management. Additionally, this feature integrates task queue management, user authentication, and repository handling through FastAPI application middleware, encompassing functionalities like running tests and updating coverage information. Through strategies and evaluators, new tests are generated and evaluated, ensuring improved code coverage and streamlined test suite maintenance.",
+    "chunks": [],
+    "children": [
+      {
+        "title": "Database Management for AST Nodes and Test Coverage in Software Projects",
+        "keywords": [
+          "NodeModel",
+          "CoverageModel",
+          "TargetCodeModel",
+          "TestModuleModel"
+        ],
+        "summary": "This collection of code defines SQLAlchemy database models and methods to manage Abstract Syntax Tree (AST) nodes, test modules, target code chunks, and test coverage within a software project. The `NodeModel` class represents AST nodes such as classes or functions that might contain unit tests. The `CoverageModel` class stores information about code coverage, detailing covered and missing lines. The `TargetCodeModel` class represents code chunks associated with test modules, including methods for serialization. The `TestModuleModel` class represents test modules and can serialize back to a higher-level `TestModule` object while tracking file coverage. Utility functions help map files to test modules and manage target code chunks. The `AugmentTestResult` class records test case results and coverage. Functions like `create_or_update_node`, `get_cov_by_filename`, `get_cov_by_id`, and `create_tgt_code_models` handle database operations related to node and coverage management.",
+        "chunks": [],
+        "children": [
+          {
+            "title": "Database Models and Operations for Test Coverage and AST Nodes Management",
+            "keywords": [
+              "NodeModel",
+              "CoverageModel",
+              "TargetCodeModel",
+              "TestModuleModel"
+            ],
+            "summary": "This collection of code defines various SQLAlchemy database models and their corresponding methods used to manage AST nodes, test modules, target code chunks, and test coverage in a software project. The `NodeModel` class represents nodes in the Abstract Syntax Tree (AST) like classes or functions which might contain unit tests. The `CoverageModel` class stores information regarding test coverages like covered and missing lines in the code. The `TargetCodeModel` class represents chunks of code that are covered by test modules, and includes methods for serializing and deserializing these chunks. The `TestModuleModel` class represents test modules, capable of serializing back to a higher-level `TestModule` object and tracking files covered by it. Utility functions are provided to map files to their corresponding test modules and to create or delete target code chunks. The `AugmentTestResult` class maintains results from test cases and their coverage.",
+            "chunks": [
+              {
+                "id": "ast/models.py#53.56",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\ast\\models.py"
+              },
+              {
+                "id": "coverage/models.py#79.33",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\coverage\\models.py"
+              },
+              {
+                "id": "src/sync_repos.py#134.25",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\sync_repos.py"
+              },
+              {
+                "id": "target_code/models.py#137.90",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\target_code\\models.py"
+              },
+              {
+                "id": "target_code/service.py#138.49",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\target_code\\service.py"
+              },
+              {
+                "id": "test_gen/models.py#183.22",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\models.py"
+              },
+              {
+                "id": "test_modules/models.py#195.67",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\models.py"
+              }
+            ],
+            "children": []
+          },
+          {
+            "title": "Database Node and Coverage Management",
+            "keywords": [
+              "create_or_update_node",
+              "get_cov_by_filename",
+              "get_cov_by_id",
+              "create_tgt_code_models"
+            ],
+            "summary": "This collection of functions is designed to manage database operations related to nodes and coverage models in a code repository. The `create_or_update_node` function handles the creation or updating of nodes, ensuring that existing nodes are not duplicated, while the `get_cov_by_filename` and `get_cov_by_id` functions retrieve coverage models based on filename and ID, respectively. The `create_tgt_code_models` function orchestrates the creation of target code models, tying together various node and coverage entities within the database.",
+            "chunks": [
+              {
+                "id": "ast/service.py#55.32",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\ast\\service.py"
+              },
+              {
+                "id": "coverage/service.py#81.20",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\coverage\\service.py"
+              },
+              {
+                "id": "tasks/create_tgt_coverage.py#142.47",
+                "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\tasks\\create_tgt_coverage.py"
+              }
+            ],
+            "children": []
+          }
+        ]
+      },
+      {
+        "title": "Request Handling and Task Queue Management",
+        "keywords": [
+          "TaskQueue",
+          "AddTaskQueueMiddleware",
+          "task_queue",
+          "app"
+        ],
+        "summary": "This feature integrates and manages the task queue system within the FastAPI application. Middleware is added to the application to append a task queue to incoming requests, and various routers are included to handle different endpoints. The task queue system supports enqueueing, listing, and completing tasks, enabling asynchronous and distributed task processing. Additionally, this feature includes functionality for managing repositories, running tests, and updating coverage information.",
+        "chunks": [
+          {
+            "id": "cowboy-server/main.py#52.49",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\main.py"
+          },
+          {
+            "id": "auth/views.py#71.20",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\auth\\views.py"
+          },
+          {
+            "id": "coverage/service.py#80.35",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\coverage\\service.py"
+          },
+          {
+            "id": "queue/core.py#103.94",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\queue\\core.py"
+          },
+          {
+            "id": "queue/service.py#106.31",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\queue\\service.py"
+          },
+          {
+            "id": "repo/service.py#115.49",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\service.py"
+          },
+          {
+            "id": "repo/views.py#119.18",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\views.py"
+          },
+          {
+            "id": "runner/service.py#124.22",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\runner\\service.py"
+          },
+          {
+            "id": "runner/service.py#125.40",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\runner\\service.py"
+          },
+          {
+            "id": "tasks/create_tgt_coverage.py#143.46",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\tasks\\create_tgt_coverage.py"
+          },
+          {
+            "id": "tasks/get_baseline.py#147.77",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\tasks\\get_baseline.py"
+          },
+          {
+            "id": "tasks/get_baseline_parallel.py#150.79",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\tasks\\get_baseline_parallel.py"
+          },
+          {
+            "id": "evaluators/augment_additive.py#160.60",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\evaluators\\augment_additive.py"
+          },
+          {
+            "id": "src/utils.py#205.45",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\utils.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "User Repository Management",
+        "keywords": [
+          "CowboyUser",
+          "RepoConfig",
+          "RepoConfigCreate",
+          "get"
+        ],
+        "summary": "This set of code chunks pertains to the management and manipulation of user repositories within a software application. It defines a `CowboyUser` class for user details, incorporating fields such as ID, email, password, and repository relationships, as well as methods for password verification and token generation. Additionally, the code provides various repository-related functions that interact with the database to create, update, delete, and retrieve repository configurations (`RepoConfig`). Functions tackle specific tasks like fetching a repository by name or ID, listing all repositories for a user, cleaning branches, and dealing with experimental features. The underlying database operations are facilitated using SQLAlchemy ORM principles.",
+        "chunks": [
+          {
+            "id": "auth/models.py#57.23",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\auth\\models.py"
+          },
+          {
+            "id": "repo/service.py#111.27",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\service.py"
+          },
+          {
+            "id": "repo/service.py#113.17",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\service.py"
+          },
+          {
+            "id": "repo/service.py#114.36",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\service.py"
+          },
+          {
+            "id": "repo/service.py#116.47",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\service.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "User and Repository Configuration Management",
+        "keywords": [
+          "UserBase",
+          "email_required",
+          "UserLogin",
+          "password_required"
+        ],
+        "summary": "This feature encompasses the definitions and validations for user data models and repository configuration settings in a system that uses FastAPI and SQLAlchemy. It includes various user-related classes for handling user login, registration, updates, and responses, as well as repository configuration classes for managing repository-related settings such as language configurations, remote commits, and repository details. The validation methods and custom mix-ins ensure the integrity and proper formatting of the data, while API endpoints provide functionalities to update user keys and check server health.",
+        "chunks": [
+          {
+            "id": "auth/models.py#58.65",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\auth\\models.py"
+          },
+          {
+            "id": "auth/views.py#72.16",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\auth\\views.py"
+          },
+          {
+            "id": "health/views.py#99.12",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\health\\views.py"
+          },
+          {
+            "id": "src/models.py#101.46",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\models.py"
+          },
+          {
+            "id": "repo/models.py#110.53",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\models.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "User Management and Repository Change Monitoring",
+        "keywords": [
+          "create",
+          "get_user_token",
+          "check_for_changed_files",
+          "CowboyUser"
+        ],
+        "summary": "This feature handles the creation and management of users, as well as monitoring changes in repository files. The `create` function creates a new CowboyUser and stores OpenAI API credentials securely. The `get_user_token` function retrieves a user's token, and the `check_for_changed_files` function continuously monitors repositories for modifications, processes these changes, and triggers appropriate responses.",
+        "chunks": [
+          {
+            "id": "auth/service.py#63.22",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\auth\\service.py"
+          },
+          {
+            "id": "src/sync_repos.py#136.35",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\sync_repos.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "User Authentication and Task Management",
+        "keywords": [
+          "get_current_user",
+          "store_oai_key",
+          "retrieve_oai_key",
+          "register_user"
+        ],
+        "summary": "This feature encompasses user authentication, key management, task queue management, repository handling, and test module operations within the backend. It manages user sessions using JWTs, extracts and validates user data, and handles database conditional checks. The task queue module lists, fetches, and completes tasks while ensuring minimal database overhead through token-based authentication for specific operations. Repository handlers allow creation, retrieval, and deletion of repositories, while augmenting test routes and mapping test modules to target coverage. Customized exceptions and helper utilities aid smooth workflow execution and proper error handling.",
+        "chunks": [
+          {
+            "id": "auth/service.py#65.54",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\auth\\service.py"
+          },
+          {
+            "id": "auth/views.py#70.16",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\auth\\views.py"
+          },
+          {
+            "id": "database/core.py#85.52",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\database\\core.py"
+          },
+          {
+            "id": "queue/permissions.py#105.21",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\queue\\permissions.py"
+          },
+          {
+            "id": "queue/views.py#107.23",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\queue\\views.py"
+          },
+          {
+            "id": "queue/views.py#108.53",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\queue\\views.py"
+          },
+          {
+            "id": "repo/service.py#112.15",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\service.py"
+          },
+          {
+            "id": "repo/views.py#118.22",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\views.py"
+          },
+          {
+            "id": "repo/views.py#120.12",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\views.py"
+          },
+          {
+            "id": "repo/views.py#121.20",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\views.py"
+          },
+          {
+            "id": "repo/views.py#122.18",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\views.py"
+          },
+          {
+            "id": "target_code/views.py#139.36",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\target_code\\views.py"
+          },
+          {
+            "id": "test_gen/views.py#191.46",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\views.py"
+          },
+          {
+            "id": "test_gen/views.py#192.16",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\views.py"
+          },
+          {
+            "id": "test_modules/views.py#203.27",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\views.py"
+          },
+          {
+            "id": "test_modules/views.py#204.23",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\views.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Experiment Management with Test Modules",
+        "keywords": [
+          "run_experiment",
+          "create_experiment",
+          "select_tms",
+          "get_tm_by_name"
+        ],
+        "summary": "This set of code chunks is responsible for managing experiments involving test modules within a code repository. It includes functions to configure and run experiments by creating and manipulating branches in a Git repository, selecting appropriate test modules through various criteria, and interacting with a database for retrieval and updating of test modules. Additionally, it sets up FastAPI routes to initiate these operations, ensuring seamless integration between the application's front-end and back-end for experiment management.",
+        "chunks": [
+          {
+            "id": "experiments/augment_test.py#93.82",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\experiments\\augment_test.py"
+          },
+          {
+            "id": "experiments/views.py#96.34",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\experiments\\views.py"
+          },
+          {
+            "id": "test_gen/service.py#188.19",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\service.py"
+          },
+          {
+            "id": "test_modules/service.py#199.27",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\service.py"
+          },
+          {
+            "id": "test_modules/service.py#200.28",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\service.py"
+          },
+          {
+            "id": "test_modules/service.py#201.17",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\service.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Repository Test Augmentation and Management",
+        "keywords": [
+          "run_experiment",
+          "RepoConfig",
+          "update_repo_stats",
+          "augment_test"
+        ],
+        "summary": "This feature encompasses the process of managing and augmenting test cases for a repository. It includes configuration management, session handling, and the generation of new tests using specified strategies and evaluators. Additionally, it provides mechanisms for updating repository statistics, committing augmented tests, and processing user decisions on test results. The feature relies on various components like SQLAlchemy for ORM, Pydantic for data validation, and context managers for database session handling, ensuring seamless integration and robust error handling.",
+        "chunks": [
+          {
+            "id": "experiments/augment_test.py#94.16",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\experiments\\augment_test.py"
+          },
+          {
+            "id": "repo/models.py#109.87",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\repo\\models.py"
+          },
+          {
+            "id": "stats/service.py#131.22",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\stats\\service.py"
+          },
+          {
+            "id": "test_gen/augment.py#152.59",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment.py"
+          },
+          {
+            "id": "test_gen/views.py#193.58",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\views.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Test Module Neutering and Management",
+        "keywords": [
+          "neuter_tests",
+          "iter_test_modules",
+          "create_all_tms",
+          "test_modules"
+        ],
+        "summary": "This set of code chunks is responsible for managing and modifying test modules within a source repository. The main functionality includes iterating through the test modules, selectively deleting tests based on certain criteria, and updating the source repository to reflect these changes. Additionally, the code handles the creation of test module instances and integrates with a database session to store metadata about these test modules. This feature ensures that unnecessary tests can be efficiently removed and the project's test suite can be maintained in a streamlined manner.",
+        "chunks": [
+          {
+            "id": "scripts/neuter_repo.py#128.46",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\scripts\\neuter_repo.py"
+          },
+          {
+            "id": "test_modules/iter_tms.py#194.41",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\iter_tms.py"
+          },
+          {
+            "id": "test_modules/service.py#197.17",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\service.py"
+          }
+        ],
+        "children": []
+      },
+      {
+        "title": "Strategy-based Test Case Generation and Evaluation",
+        "keywords": [
+          "SourceRepo",
+          "TestCaseInput",
+          "BaseStrategy",
+          "Composer"
+        ],
+        "summary": "This code focuses on the generation and evaluation of test cases for source code repositories using different strategies. The core components include abstract base classes for defining test inputs and strategies, a `Composer` class to instantiate combinations of strategies and evaluators, and evaluator classes that assess the effectiveness of the generated test cases. The `BaseStrategy` defines methods for constructing prompts and parsing responses, while the `Composer` assembles various strategies, runs tests, and filters results. Evaluator classes like `AugmentAdditiveEvaluator` and `AugmentParallelEvaluator` handle the iterative and parallel evaluation of test results, respectively, aiming to improve code coverage.",
+        "chunks": [
+          {
+            "id": "augment_test/base_strat.py#153.37",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\base_strat.py"
+          },
+          {
+            "id": "augment_test/composer.py#155.48",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\composer.py"
+          },
+          {
+            "id": "evaluators/augment_additive.py#159.48",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\evaluators\\augment_additive.py"
+          },
+          {
+            "id": "evaluators/augment_parallel.py#161.46",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\evaluators\\augment_parallel.py"
+          },
+          {
+            "id": "evaluators/eval_base.py#164.38",
+            "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_gen\\augment_test\\evaluators\\eval_base.py"
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "title": "Database Operations for Nodes and Test Modules",
+    "keywords": [
+      "ASTNode",
+      "TestModule",
+      "TestModuleModel",
+      "Session"
+    ],
+    "summary": "This set of code chunks deals with the creation and retrieval of database records related to nodes and test modules within a repository. It utilizes SQLAlchemy ORM for querying and persisting data. The `get_node` function fetches a specific node record from the database based on given parameters such as node name, repository ID, node type, and file path. The `create_node` function is responsible for creating a new node record in the database, while `create_tm` focuses on creating a test module and subsequently creating nodes associated with that test module.",
+    "chunks": [
+      {
+        "id": "ast/service.py#54.43",
+        "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\ast\\service.py"
+      },
+      {
+        "id": "test_modules/service.py#198.23",
+        "file_path": "C:\\Users\\jpeng\\Documents\\projects\\test_rtfs\\tests\\cowboy-server\\src\\test_modules\\service.py"
+      }
+    ],
+    "children": []
+  }
+]

@@ -18,14 +18,18 @@ class RepoFs:
     Handles all the filesystem operations
     """
 
-    def __init__(self, repo_path: Path):
+    def __init__(self, repo_path: Path, skip_tests: bool = True):
         self.path = repo_path
         self._all_paths = self._get_all_paths()
+        self._skip_tests = skip_tests
 
         # TODO: fix this later to actually parse the Paths
 
     def get_files_content(self) -> Iterator[Tuple[Path, bytes]]:
         for file in self._all_paths:
+            if self._skip_tests and file.name.startswith("test_"):
+                continue
+
             if file.suffix == SRC_EXT:
                 yield file, file.read_bytes()
 

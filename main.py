@@ -1,3 +1,3 @@
-from rtfs.cli import entrypoint
+from rtfs.cli import cli
 
-entrypoint()
+cli()

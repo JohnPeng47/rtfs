@@ -94,6 +94,8 @@ class ChunkGraph:
         if len(chunk_names) != len(chunks):
             raise ValueError("Collision has occurred in chunk names")
 
+        print(len(cg.get_all_nodes()))
+
         # main loop to build graph
         for chunk_node in cg.get_all_nodes():
             # chunk -> range -> scope
@@ -205,6 +207,7 @@ class ChunkGraph:
                 # differentiate between ImportToExport chunks and CallToExport chunks
                 # so in the future we can use this for file level edges
                 ref_edge = ImportEdge(ref=ref.name)
+                print(f"Adding edge: {chunk_node.id} -> {dst_chunk.id}")
                 self.add_edge(chunk_node.id, dst_chunk.id, ref_edge)
 
     # TODO: should really use IntervalGraph here but chunks are small enough
@@ -290,19 +293,21 @@ class ChunkGraph:
                     child_node = ClusterNode(id=child_id)
                     self.add_node(child_node)
 
-                self.add_edge(
-                    child_id,
-                    parent_id,
-                    ClusterEdge(kind=ClusterEdgeKind.ClusterToCluster),
-                )
+                if not self._graph.has_edge(child_id, parent_id):
+                    self.add_edge(
+                        child_id,
+                        parent_id,
+                        ClusterEdge(kind=ClusterEdgeKind.ClusterToCluster),
+                    )
 
                 if i > max_cluster_depth:
                     max_cluster_depth = i
 
             # last child_id is the cluster of chunk_node
-            self.add_edge(
-                chunk_node, child_id, ClusterEdge(kind=ClusterEdgeKind.ChunkToCluster)
-            )
+            if not self._graph.has_edge(chunk_node, child_id):
+                self.add_edge(
+                    chunk_node, child_id, ClusterEdge(kind=ClusterEdgeKind.ChunkToCluster)
+                )
 
         self._cluster_depth = max_cluster_depth
         self._cluster_roots = self._get_cluster_roots()
@@ -415,7 +420,7 @@ class ChunkGraph:
         )
 
     # TODO: we need to fix the depth of the node
-    async def summarize(self, user_confirm: bool = False):
+    async def summarize(self, user_confirm: bool = False, test_run: bool = False):
         if self._cluster_depth is None:
             raise ValueError("Must cluster before summarizing")
 
@@ -442,6 +447,7 @@ class ChunkGraph:
                 print("Aborted.")
                 exit()
 
+        limit = 2 if test_run else float("inf")
         for depth in range(self._cluster_depth + 1, -1, -1):
             clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
             for cluster in clusters:
@@ -453,8 +459,18 @@ class ChunkGraph:
                 except LLMException:
                     continue
 
+                # limit run for tests
+                if limit <= 0:
+                    break
+                limit -= 1
+
                 cluster_node = ClusterNode(id=cluster, summary_data=summary_data)
                 self.update_node(cluster_node)
+
+            # ...
+            if limit <= 0:
+                break
+
 
     ##### FOR testing prompt #####
     def get_chunk_imports(self):
@@ -532,9 +548,9 @@ class ChunkGraph:
             sum_data = node_data.get("summary_data", {})
 
             if sum_data:
-                title = sum_data["title"]
-                keywords = ", ".join(sum_data.get("key_variables", [])[:2])
-                summary = sum_data.get("summary", "")
+                title = sum_data.title
+                keywords = sum_data.key_variables[:4]
+                summary = sum_data.summary
             else:
                 title = "<MISSING>"
                 keywords = "<MISSING>"

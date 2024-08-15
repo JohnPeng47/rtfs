@@ -1,8 +1,9 @@
 import networkx as nx
 from infomap import Infomap
 import yaml
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List
+import time
 
 from rtfs.models import OpenAIModel
 
@@ -44,9 +45,9 @@ class LLMException(Exception):
 
 @dataclass
 class SummarizedChunk:
-    title: str
-    summary: str
-    key_variables: List[str]
+    title: str = ""
+    summary: str = ""
+    key_variables: List[str] = field(default_factory=list)
 
 
 def summarize_chunk_text(cluster, model: OpenAIModel) -> SummarizedChunk:
@@ -69,21 +70,24 @@ Here is the code:
     """
 
     async def query_model(cluster):
-        response = await model.query(prompt.format(code=cluster))
+        # reason for exponential backoff is, I think 
+        # >>> [1.5**b for b in a]
+        # [1.5, 2.25, 3.375, 5.0625, 7.59375]
 
-        # Extract the yaml content from the response
-        yaml_content = response.split("```yaml")[1].split("```")[0].strip()
-
+        back_off = 1.5
         # Retry logic for yaml parsing
-        for attempt in range(3):
+        for attempt in range(1, 6):
             try:
-                return SummarizedChunk(**yaml.safe_load(yaml_content))
+                response = await model.query(prompt.format(code=cluster))
+                yaml_content = response.split("```yaml")[1].split("```")[0].strip()
 
+                return SummarizedChunk(**yaml.safe_load(yaml_content))
             # TODO: check if this fails 3 times only or not at all
-            except yaml.YAMLError as e:
-                if attempt < 2:
-                    print(f"{attempt + 1} summarizing attempt failed, retrying...")
-                else:
-                    raise LLMException("Failed to parse YAML after 3 attempts") from e
+            except Exception as e:
+                print("Failed attempt : ", attempt)
+                
+                time.sleep(back_off ** attempt)
+                if attempt > 5:
+                    raise LLMException("Failed to parse YAML after 5 attempts") from e
 
     return query_model(cluster)

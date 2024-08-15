@@ -6,15 +6,27 @@
 
 What the clusters represent are functional groupings of code that inter-depend on each other (ie. Web Content Scraping and Integration Feature).
 
+Generation is relatively cheap, fraction of the cost of the ingesting the whole repo
 
 # Install
+
+OPENAI_API_KEY must be set in the env to use 
 ```
 pip install rtfs
 ```
 
-# Run
+# Get text output to console
 ```
-rtfs <path_to_repo>
+rtfs chunk-graph tests\cowboy-server\
+
+...
+# accept the summarization charge (we are not summarizing over every single file)
+The summarization will cost $0.023670999999999998 and use 23671 tokens. Do you want to proceed? (yes/no): yes
+```
+
+# Get json output
+```
+rtfs chunk-graph tests\cowboy-server\ --output-format json --output-file json- 
 ```
 
 # Sample output

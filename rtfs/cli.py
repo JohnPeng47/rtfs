@@ -7,71 +7,51 @@ import json
 import importlib.resources as pkg_resources
 import asyncio
 from networkx import MultiDiGraph
+import click
 
 import cProfile
-
+import pstats
+import io
+from pstats import SortKey
+from pathlib import Path
+from functools import wraps
+import asyncio
 
 from llama_index.core import SimpleDirectoryReader
-
 from rtfs.moatless.epic_split import EpicSplitter
 from rtfs.moatless.settings import IndexSettings
 from rtfs.chunk_resolution.chunk_graph import ChunkGraph
-
 from rtfs.file_resolution.file_graph import FileGraph
-
+import traceback
 
 GRAPH_FOLDER = pkg_resources.files("rtfs") / "graphs"
 
+def profile_decorator(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        pr = cProfile.Profile()
+        pr.enable()
 
-def ingest(repo_path: str) -> ChunkGraph:
-    def file_metadata_func(file_path: str) -> Dict:
-        test_patterns = [
-            "**/test/**",
-            "**/tests/**",
-            "**/test_*.py",
-            "**/*_test.py",
-        ]
-        category = (
-            "test"
-            if any(fnmatch.fnmatch(file_path, pattern) for pattern in test_patterns)
-            else "implementation"
-        )
+        result = await func(*args, **kwargs)
 
-        return {
-            "file_path": file_path,
-            "file_name": os.path.basename(file_path),
-            "file_type": mimetypes.guess_type(file_path)[0],
-            "category": category,
-        }
+        pr.disable()
 
-    reader = SimpleDirectoryReader(
-        input_dir=repo_path,
-        file_metadata=file_metadata_func,
-        filename_as_id=True,
-        required_exts=[".py"],  # TODO: Shouldn't be hardcoded and filtered
-        recursive=True,
-    )
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE)
+        ps.print_stats(40)  # Print top 40 lines
+        print(f"Profiling results for {func.__name__}:")
+        print(s.getvalue())
 
-    settings = IndexSettings()
-    docs = reader.load_data()
+        return result
 
-    splitter = EpicSplitter(
-        min_chunk_size=settings.min_chunk_size,
-        chunk_size=settings.chunk_size,
-        hard_token_limit=settings.hard_token_limit,
-        max_chunks=settings.max_chunks,
-        comment_strategy=settings.comment_strategy,
-        repo_path=repo_path,
-    )
-
-    prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
-    chunk_graph = ChunkGraph.from_chunks(Path(repo_path), prepared_nodes)
-
-    return chunk_graph
+    return wrapper
 
 
-import time
+@profile_decorator
+async def profiled_main(repo_path, saved_graph_path: Path):
+    fg = FileGraph.from_repo(Path(repo_path))
 
+    return fg  # or whatever you want to return from main
 
 # untuned implementation could be really expensive
 # need to do this at
@@ -117,92 +97,112 @@ def construct_edge_series(graph: MultiDiGraph):
     return edge_series
 
 
-async def main(repo_path, saved_graph_path: Path):
-    import cProfile
-    import pstats
-    import io
-    from pstats import SortKey
-    import time
-    from pathlib import Path
 
-    start_time = time.time()
-    graph_dict = {}
+def ingest(repo_path: str, exclude_paths: List[str] = []) -> ChunkGraph:
+    def file_metadata_func(file_path: str) -> Dict:
+        test_patterns = [
+            "**/test/**",
+            "**/tests/**",
+            "**/test_*.py",
+            "**/*_test.py",
+        ]
+        category = (
+            "test"
+            if any(fnmatch.fnmatch(file_path, pattern) for pattern in test_patterns)
+            else "implementation"
+        )
 
-    # Profile FileGraph.from_repo
-    pr = cProfile.Profile()
-    pr.enable()
-    
+        return {
+            "file_path": file_path,
+            "file_name": os.path.basename(file_path),
+            "file_type": mimetypes.guess_type(file_path)[0],
+            "category": category,
+        }
+
+    reader = SimpleDirectoryReader(
+        input_dir=repo_path,
+        file_metadata=file_metadata_func,
+        filename_as_id=True,
+        required_exts=[".py"],  # TODO: Shouldn't be hardcoded and filtered
+        recursive=True,
+    )
+
+    settings = IndexSettings()
+    docs = reader.load_data()
+
+    splitter = EpicSplitter(
+        min_chunk_size=settings.min_chunk_size,
+        chunk_size=settings.chunk_size,
+        hard_token_limit=settings.hard_token_limit,
+        max_chunks=settings.max_chunks,
+        comment_strategy=settings.comment_strategy,
+        repo_path=repo_path,
+    )
+
+    prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
+    chunk_graph = ChunkGraph.from_chunks(Path(repo_path), prepared_nodes)
+
+    return chunk_graph
+
+@click.group()
+def cli():
+    """RTFS CLI tool for repository analysis."""
+    pass
+
+
+@cli.command()
+@click.argument(
+    "repo_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.option("--saved-graph-path", type=click.Path(), default=None)
+def file_graph(repo_path, saved_graph_path):
+    """Generate a FileGraph from the repository."""
     fg = FileGraph.from_repo(Path(repo_path))
-    
-    pr.disable()
-    
-    # Print profiling results
-    s = io.StringIO()
-    ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE)
-    ps.print_stats(40)  # Print top 20 lines
-    print("Profiling results for FileGraph.from_repo:")
-    print(s.getvalue())
+    click.echo("FileGraph generated successfully.")
 
 
-    # if saved_graph_path.exists():
-    #     with open(saved_graph_path, "r") as f:
-    #         graph_dict = json.loads(f.read())
-
-    # if graph_dict:
-    #     cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
-    #     for u, v, attrs in cg._graph.edges(data=True):
-    #         if attrs["kind"] == "CallToExport":
-    #             print(u, v)
-
-    #     # output = json.dumps(cg.clusters_to_json())
-    #     print("hello")
-    #     for calls in construct_edge_series(cg._graph):
-    #         print(len(calls))
-
-    #     # print(cg.clusters_to_str())
-
-    # else:
-    #     cg = ingest(repo_path)
-    #     cg.cluster()
-
-    #     # await cg.summarize(user_confirm=True)
-
-    #     graph_dict = cg.to_json()
-    #     with open(saved_graph_path, "w") as f:
-    #         f.write(json.dumps(graph_dict))
-
-    #     output = json.dumps(cg.clusters_to_json())
-
-    # print(output)
-
-    end_time = time.time()
-    print(f"Runtime of the function: {end_time - start_time} seconds")
-
-
-def entrypoint():
-    import argparse
-    import logging
-
-    log_level = logging.INFO
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("repo_path", help="Path to the repository to ingest")
-
-    args = parser.parse_args()
-    repo_path = args.repo_path
-
-    if not os.path.exists(repo_path) or not os.path.isdir(repo_path):
-        print(f"Path {repo_path} does not exist or is not directory")
-        exit()
-
-    logging.basicConfig(level=log_level, format="%(filename)s: %(message)s")
-
-    if not os.path.exists(GRAPH_FOLDER):
-        os.makedirs(GRAPH_FOLDER)
+@cli.command()
+@click.argument(
+    "repo_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.option("--test-run", is_flag=True)
+@click.option("--output-format", type=click.Choice(["str", "json"]), default="str")
+@click.option("--output-file", type=click.Path(), default=None)
+def chunk_graph(
+    repo_path, test_run, output_format, output_file
+):  # Modified line
+    """Generate and manipulate ChunkGraph."""
 
     saved_graph_path = Path(GRAPH_FOLDER, Path(repo_path).name + ".json")
-    asyncio.run(main(repo_path, saved_graph_path))
+    if saved_graph_path.exists():
+        with open(saved_graph_path, "r") as f:
+            graph_dict = json.loads(f.read())
+
+        print("Loading graph from saved file")
+        cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
+    else:
+        cg = ingest(repo_path)
+        cg.cluster()
+        asyncio.run(cg.summarize(user_confirm=True, test_run=test_run))
+
+    if output_format == "str":
+        click.echo(cg.clusters_to_str())
+    elif output_format == "json":
+        clusters_json = cg.clusters_to_json()
+        if output_file:
+            with open(output_file, "w") as f:
+                json.dump(clusters_json, f, indent=2)
+            click.echo(f"Clusters JSON written to {output_file}")
+        else:
+            click.echo(json.dumps(clusters_json, indent=2))
+
+    click.echo("ChunkGraph generated and processed successfully.")
 
 
 if __name__ == "__main__":
-    entrypoint()
+    try:
+        cli()
+    except Exception as e:
+        click.echo(f"Error: {e}")
+        traceback.print_exc()
+        raise e
