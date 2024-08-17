@@ -51,10 +51,10 @@ class TextRange(BaseModel):
             start_point=new_start_point,
             end_point=new_end_point,
         )
-    
+
     def __lt__(self, other: "TextRange"):
         return self.contains_line(other)
-    
+
     def line_range(self):
         return self.start_point.row, self.end_point.row
 

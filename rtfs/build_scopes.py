@@ -175,6 +175,5 @@ def build_scope_graph(src_bytes: bytearray, language: str = "python") -> ScopeGr
         local_call = LocalCall(range, call_capture.name, call_capture.parameters)
 
         scope_graph.insert_local_call(local_call)
-        
 
     return scope_graph

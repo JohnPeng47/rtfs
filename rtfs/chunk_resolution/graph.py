@@ -1,18 +1,29 @@
 from enum import Enum
 from typing import List, Optional, NewType, Literal
-from pydantic.dataclasses import dataclass
+
+from dataclasses_json import dataclass_json
+from dataclasses import dataclass, field
+
+# from pydantic.dataclasses import dataclass
+# from pydantic import Field
 
 from rtfs.graph import Node, Edge
 from rtfs.moatless.epic_split import CodeNode
 from rtfs.utils import TextRange
-
-from .cluster import SummarizedChunk
 
 
 ChunkNodeID = NewType("ChunkNodeID", str)
 ClusterID = NewType("ClusterID", str)
 
 
+@dataclass
+class SummarizedChunk:
+    title: str = ""
+    summary: str = ""
+    key_variables: List[str] = field(default_factory=list)
+
+
+@dataclass_json
 @dataclass(kw_only=True)
 class ChunkMetadata:
     file_path: str
@@ -25,10 +36,35 @@ class ChunkMetadata:
     end_line: int
     community: Optional[int] = None
 
+    def to_dict(self):
+        return {
+            "file_path": self.file_path,
+            "file_name": self.file_name,
+            "file_type": self.file_type,
+            "category": self.category,
+            "tokens": self.tokens,
+            "span_ids": self.span_ids,
+            "start_line": self.start_line,
+            "end_line": self.end_line,
+            "community": self.community,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**data)
+
+    def __json__(self):
+        return self.to_dict()
+
+    @classmethod
+    def __from_json__(cls, data):
+        return cls.from_dict(data)
+
 
 class NodeKind(str, Enum):
     Chunk = "Chunk"
     Cluster = "Cluster"
+
 
 @dataclass(kw_only=True)
 class ChunkNode(Node):
@@ -68,6 +104,7 @@ class ChunkNode(Node):
     def get_content(self):
         return self.content
 
+
 @dataclass(kw_only=True)
 class ClusterNode(Node):
     id: ClusterID
@@ -86,19 +123,23 @@ class ClusterEdgeKind(str, Enum):
     ClusterToCluster = "ClusterToCluster"
     ChunkToCluster = "ChunkToCluster"
 
+
 class ChunkEdgeKind(str, Enum):
     ImportFrom = "ImportFrom"
     CallTo = "CallTo"
+
 
 @dataclass(kw_only=True)
 class ImportEdge(Edge):
     kind: ChunkEdgeKind = ChunkEdgeKind.ImportFrom
     ref: str
 
+
 @dataclass(kw_only=True)
 class CallEdge(Edge):
     kind: ChunkEdgeKind = ChunkEdgeKind.CallTo
     ref: str
+
 
 @dataclass(kw_only=True)
 class ClusterEdge(Edge):

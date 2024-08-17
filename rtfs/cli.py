@@ -21,10 +21,12 @@ from llama_index.core import SimpleDirectoryReader
 from rtfs.moatless.epic_split import EpicSplitter
 from rtfs.moatless.settings import IndexSettings
 from rtfs.chunk_resolution.chunk_graph import ChunkGraph
+from rtfs.chunk_resolution.summarize import Summarizer
 from rtfs.file_resolution.file_graph import FileGraph
 import traceback
 
 GRAPH_FOLDER = pkg_resources.files("rtfs") / "graphs"
+
 
 def profile_decorator(func):
     @wraps(func)
@@ -52,6 +54,7 @@ async def profiled_main(repo_path, saved_graph_path: Path):
     fg = FileGraph.from_repo(Path(repo_path))
 
     return fg  # or whatever you want to return from main
+
 
 # untuned implementation could be really expensive
 # need to do this at
@@ -95,7 +98,6 @@ def construct_edge_series(graph: MultiDiGraph):
             dfs_edge(node, [node])
 
     return edge_series
-
 
 
 def ingest(repo_path: str, exclude_paths: List[str] = []) -> ChunkGraph:
@@ -144,6 +146,7 @@ def ingest(repo_path: str, exclude_paths: List[str] = []) -> ChunkGraph:
 
     return chunk_graph
 
+
 @click.group()
 def cli():
     """RTFS CLI tool for repository analysis."""
@@ -163,16 +166,14 @@ def file_graph(repo_path, saved_graph_path):
 
 @cli.command()
 @click.argument(
-    "repo_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+    "repo_path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
 )
 @click.option("--test-run", is_flag=True)
 @click.option("--output-format", type=click.Choice(["str", "json"]), default="str")
 @click.option("--output-file", type=click.Path(), default=None)
-def chunk_graph(
-    repo_path, test_run, output_format, output_file
-):  # Modified line
+def chunk_graph(repo_path, test_run, output_format, output_file):  # Modified line
     """Generate and manipulate ChunkGraph."""
-
     saved_graph_path = Path(GRAPH_FOLDER, Path(repo_path).name + ".json")
     if saved_graph_path.exists():
         with open(saved_graph_path, "r") as f:
@@ -183,7 +184,12 @@ def chunk_graph(
     else:
         cg = ingest(repo_path)
         cg.cluster()
-        asyncio.run(cg.summarize(user_confirm=True, test_run=test_run))
+        cg.to_json(saved_graph_path)
+
+        exit()
+
+        summarizer = Summarizer()
+        asyncio.run(summarizer.summarize(cg, user_confirm=True, test_run=test_run))
 
     if output_format == "str":
         click.echo(cg.clusters_to_str())
@@ -195,6 +201,8 @@ def chunk_graph(
             click.echo(f"Clusters JSON written to {output_file}")
         else:
             click.echo(json.dumps(clusters_json, indent=2))
+
+    cg.to_json(saved_graph_path)
 
     click.echo("ChunkGraph generated and processed successfully.")
 

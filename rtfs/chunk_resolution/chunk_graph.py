@@ -4,6 +4,7 @@ from llama_index.core.schema import BaseNode
 from typing import List, Tuple, Dict
 import os
 from collections import deque
+import json
 
 from rtfs.scope_resolution.capture_refs import capture_refs
 from rtfs.scope_resolution.graph_types import ScopeID
@@ -26,12 +27,7 @@ from .graph import (
     NodeKind,
     ChunkNodeID,
 )
-from .cluster import (
-    cluster_infomap,
-    summarize_chunk_text,
-    LLMException,
-    SummarizedChunk,
-)
+from .cluster import cluster_infomap
 
 import logging
 from collections import defaultdict
@@ -63,7 +59,7 @@ class ChunkGraph:
     # turn import => export mapping into a function
     # implement tqdm for chunk by chunk processing
     @classmethod
-    def from_chunks(cls, repo_path: Path, chunks: List[BaseNode]):
+    def from_chunks(cls, repo_path: Path, chunks: List[BaseNode], skip_tests=True):
         """
         Build chunk (import) to chunk (export) mapping by associating a chunk with
         the list of scopes, and then using the scope -> scope mapping provided in RepoGraph
@@ -75,9 +71,13 @@ class ChunkGraph:
 
         # used to map range to chunks
         chunk_names = set()
+        skipped_chunks = 0
 
         for i, chunk in enumerate(chunks, start=1):
             metadata = ChunkMetadata(**chunk.metadata)
+            if skip_tests and metadata.file_name.startswith("test_"):
+                skipped_chunks += 1
+                continue
 
             short_name = cg._chunk_short_name(chunk, i)
             chunk_names.add(short_name)
@@ -91,7 +91,7 @@ class ChunkGraph:
             cg._chunkmap[Path(metadata.file_path)].append(chunk_node)
 
         # shouldnt really happen but ...
-        if len(chunk_names) != len(chunks):
+        if len(chunk_names) != len(chunks) - skipped_chunks:
             raise ValueError("Collision has occurred in chunk names")
 
         print(len(cg.get_all_nodes()))
@@ -113,14 +113,50 @@ class ChunkGraph:
     def from_json(cls, repo_path: Path, json_data: Dict):
         cg = node_link_graph(json_data["link_data"])
 
-        return cls(repo_path, cg, cluster_roots=json_data["cluster_roots"])
+        return cls(
+            repo_path,
+            cg,
+            cluster_roots=json_data["cluster_roots"],
+            cluster_depth=json_data["cluster_depth"],
+        )
 
-    def to_json(self):
+    def to_json(self, file_path: Path):
+        def custom_node_link_data(G):
+            data = {
+                "directed": G.is_directed(),
+                "multigraph": G.is_multigraph(),
+                "graph": G.graph,
+                "nodes": [],
+                "links": [],
+            }
+
+            for n, node_data in G.nodes(data=True):
+                node_dict = node_data.copy()
+                if "metadata" in node_dict and isinstance(
+                    node_dict["metadata"], ChunkMetadata
+                ):
+                    node_dict["metadata"] = node_dict["metadata"].to_json()
+                node_dict["id"] = n
+                data["nodes"].append(node_dict)
+
+            for u, v, edge_data in G.edges(data=True):
+                edge = edge_data.copy()
+                edge["source"] = u
+                edge["target"] = v
+                data["links"].append(edge)
+
+            return data
+
         graph_dict = {}
+        graph_dict["cluster_depth"] = self._cluster_depth
         graph_dict["cluster_roots"] = self._cluster_roots
-        graph_dict["link_data"] = node_link_data(self._graph)
+        graph_dict["link_data"] = custom_node_link_data(self._graph)
 
-        return graph_dict
+        print("Writing saved graph to: ", file_path)
+
+        with open(file_path, "w") as f:
+            graph_json = json.dumps(graph_dict)
+            f.write(graph_json)
 
     def get_node(self, node_id: str) -> ChunkNode:
         data = self._graph._node.get(node_id, None)
@@ -201,13 +237,13 @@ class ChunkGraph:
             if dst_chunk:
                 if scope_graph.is_call_ref(ref.range):
                     call_edge = CallEdge(ref=ref.name)
-                    print("adding call edge: ", call_edge.dict())
+                    # print("adding call edge: ", call_edge.dict())
                     self.add_edge(chunk_node.id, dst_chunk.id, call_edge)
 
                 # differentiate between ImportToExport chunks and CallToExport chunks
                 # so in the future we can use this for file level edges
                 ref_edge = ImportEdge(ref=ref.name)
-                print(f"Adding edge: {chunk_node.id} -> {dst_chunk.id}")
+                # print(f"Adding edge: {chunk_node.id} -> {dst_chunk.id}")
                 self.add_edge(chunk_node.id, dst_chunk.id, ref_edge)
 
     # TODO: should really use IntervalGraph here but chunks are small enough
@@ -306,7 +342,9 @@ class ChunkGraph:
             # last child_id is the cluster of chunk_node
             if not self._graph.has_edge(chunk_node, child_id):
                 self.add_edge(
-                    chunk_node, child_id, ClusterEdge(kind=ClusterEdgeKind.ChunkToCluster)
+                    chunk_node,
+                    child_id,
+                    ClusterEdge(kind=ClusterEdgeKind.ChunkToCluster),
                 )
 
         self._cluster_depth = max_cluster_depth
@@ -419,58 +457,41 @@ class ChunkGraph:
             filter(lambda d: d.data["def_type"] in ["class", "function"], def_nodes)
         )
 
-    # TODO: we need to fix the depth of the node
-    async def summarize(self, user_confirm: bool = False, test_run: bool = False):
-        if self._cluster_depth is None:
-            raise ValueError("Must cluster before summarizing")
+    # async def summarize(self, user_confirm: bool = False, test_run: bool = False):
+    #     if self._cluster_depth is None:
+    #         raise ValueError("Must cluster before summarizing")
 
-        if user_confirm:
-            agg_chunks = ""
-            for depth in range(self._cluster_depth + 1, -1, -1):
-                clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
-                for cluster in clusters:
-                    # only count Chunk tokens
-                    chunk_text = "\n".join(
-                        [
-                            self.get_node(c).get_content()
-                            for c in self.children(cluster)
-                            if self.get_node(c).kind == NodeKind.Chunk
-                        ]
-                    )
-                    agg_chunks += chunk_text
+    #     if user_confirm:
+    #         agg_chunks = ""
+    #         for _, chunk_text in self.iterate_clusters_with_text():
+    #             agg_chunks += chunk_text
 
-            tokens, cost = self._lm.calc_input_cost(agg_chunks)
-            user_input = input(
-                f"The summarization will cost ${cost} and use {tokens} tokens. Do you want to proceed? (yes/no): "
-            )
-            if user_input.lower() != "yes":
-                print("Aborted.")
-                exit()
+    #         tokens, cost = self._lm.calc_input_cost(agg_chunks)
+    #         user_input = input(
+    #             f"The summarization will cost ${cost} and use {tokens} tokens. Do you want to proceed? (yes/no): "
+    #         )
+    #         if user_input.lower() != "yes":
+    #             print("Aborted.")
+    #             exit()
 
-        limit = 2 if test_run else float("inf")
-        for depth in range(self._cluster_depth + 1, -1, -1):
-            clusters = self.get_clusters_at_depth(self._cluster_roots, depth)
-            for cluster in clusters:
-                chunk_text = "\n".join(
-                    [self.get_node(c).get_content() for c in self.children(cluster)]
-                )
-                try:
-                    summary_data = await summarize_chunk_text(chunk_text, self._lm)
-                except LLMException:
-                    continue
+    #     limit = 2 if test_run else float("inf")
+    #     for cluster, chunk_text in self.iterate_clusters_with_text():
+    #         try:
+    #             summary_data = await summarize_chunk_text(chunk_text, self._lm)
+    #         except LLMException:
+    #             continue
 
-                # limit run for tests
-                if limit <= 0:
-                    break
-                limit -= 1
+    #         # limit run for tests
+    #         if limit <= 0:
+    #             break
+    #         limit -= 1
 
-                cluster_node = ClusterNode(id=cluster, summary_data=summary_data)
-                self.update_node(cluster_node)
+    #         cluster_node = ClusterNode(id=cluster, summary_data=summary_data)
+    #         self.update_node(cluster_node)
 
-            # ...
-            if limit <= 0:
-                break
-
+    #     # ...
+    #     if limit <= 0:
+    #         return
 
     ##### FOR testing prompt #####
     def get_chunk_imports(self):
@@ -568,7 +589,8 @@ class ChunkGraph:
                     # TODO: change to include file name
                     chunk_info = {
                         "id": chunk_node.id,
-                        "file_path": chunk_node.metadata.file_path,
+                        "og_id": chunk_node.og_id,
+                        "file_path": chunk_node.metadata.file_path.replace("\\", "/"),
                     }
                     graph_json["chunks"].append(chunk_info)
 

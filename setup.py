@@ -3,7 +3,7 @@ from setuptools import Extension, find_packages, setup
 # TODO: figure out how to run npm run build
 setup(
     name="rtfs",
-    version="0.0.25",
+    version="0.0.27",
     packages=find_packages(),
     include_package_data=True,
     package_data={

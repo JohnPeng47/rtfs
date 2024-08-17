@@ -19,7 +19,7 @@ class RepoFs:
     """
 
     def __init__(self, repo_path: Path, skip_tests: bool = True):
-        self.path = repo_path
+        self.repo_path = repo_path
         self._all_paths = self._get_all_paths()
         self._skip_tests = skip_tests
 
@@ -43,6 +43,7 @@ class RepoFs:
                 )
 
     # TODO: need to account for relative paths
+    # can do for absolute imports
     # we miss the following case:
     # - import a => will match any file in the repo that ends with "a"
     def match_file(self, ns_path: Path) -> Path:
@@ -50,6 +51,17 @@ class RepoFs:
         Given a file abc/xyz, check if it exists in all_paths
         even if the abc is not aligned with the root of the path
         """
+        # import_path = self.repo_path / ns_path
+
+        # if import_path.is_dir():
+        #     init_path = (import_path / "__init__.py").resolve()
+        #     # print("MF: ", init_path)
+        #     if init_path.exists():
+        #         print("Helo?: ", init_path)
+        #         return init_path
+
+        # if import_path.with_suffix(SRC_EXT).exists():
+        #     return import_path.with_suffix(SRC_EXT).resolve()
 
         for path in self._all_paths:
             path_name = path.name.replace(SRC_EXT, "")
@@ -70,4 +82,6 @@ class RepoFs:
         Return all source files matching language extension and directories
         """
 
-        return [p for p in self.path.rglob("*") if p.suffix == SRC_EXT or p.is_dir()]
+        return [
+            p for p in self.repo_path.rglob("*") if p.suffix == SRC_EXT or p.is_dir()
+        ]

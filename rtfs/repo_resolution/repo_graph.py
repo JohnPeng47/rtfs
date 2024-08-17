@@ -80,7 +80,9 @@ class RepoGraph:
                         ref_node_id = repo_node_id(path, ref_scope)
                         ref_node = self.get_node(ref_node_id)
                         if not ref_node:
-                            ref_node = RepoNode(id=ref_node_id, file_path=path, scope=ref_scope)
+                            ref_node = RepoNode(
+                                id=ref_node_id, file_path=path, scope=ref_scope
+                            )
                             self.total_scopes.add(ref_node_id)
                             self.add_node(ref_node)
 
@@ -94,7 +96,9 @@ class RepoGraph:
                         imp_node_id = repo_node_id(export_file, def_scope)
                         imp_node = self.get_node(imp_node_id)
                         if not imp_node:
-                            imp_node = RepoNode(id=imp_node_id, file_path=export_file, scope=def_scope)
+                            imp_node = RepoNode(
+                                id=imp_node_id, file_path=export_file, scope=def_scope
+                            )
                             self.total_scopes.add(imp_node_id)
                             self.add_node(imp_node)
 
@@ -170,6 +174,8 @@ class RepoGraph:
 
                     for init_imp in init_imports:
                         init_file = self.fs.match_file(init_imp.namespace.to_path())
+                        print("Init file: ", init_file)
+
                         if not init_file:
                             continue
 

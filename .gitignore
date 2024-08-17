@@ -1,5 +1,7 @@
 *.pyc
-./*.json
+*.json
+
+!rtfs/languages/**/*.json
 
 output.txt
 tests/repos/*
