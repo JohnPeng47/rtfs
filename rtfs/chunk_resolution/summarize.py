@@ -86,18 +86,20 @@ class Summarizer:
     # of the clusters is maintained during summary generation
     # can only parallelize one whole depth level at a time
     def iterate_clusters_with_text(self, cg: ChunkGraph):
-        for depth in range(cg._cluster_depth + 1, -1, -1):
-            clusters = cg.get_clusters_at_depth(cg._cluster_roots, depth)
-            for cluster in clusters:
-                child_content = "\n".join(
-                    [
-                        cg.get_node(c).get_content()
-                        for c in cg.children(cluster)
-                        if cg.get_node(c).kind == NodeKind.Chunk
-                        or cg.get_node(c).kind == NodeKind.Cluster
-                    ]
-                )
-                yield (cluster, child_content)
+        for cluster in [
+            node
+            for node, data in cg._graph.nodes(data=True)
+            if data["kind"] == NodeKind.Cluster
+        ]:
+            child_content = "\n".join(
+                [
+                    cg.get_node(c).get_content()
+                    for c in cg.children(cluster)
+                    if cg.get_node(c).kind == NodeKind.Chunk
+                    or cg.get_node(c).kind == NodeKind.Cluster
+                ]
+            )
+            yield (cluster, child_content)
 
     def clusters_to_str(self):
         INDENT_SYM = lambda d: "-" * d + " " if d > 0 else ""
@@ -229,20 +231,12 @@ class Summarizer:
     async def summarize(
         self, cg: ChunkGraph, user_confirm: bool = False, test_run: bool = False
     ):
-        if cg._cluster_depth is None:
-            raise ValueError("Must cluster before summarizing")
-
         if user_confirm and not self.user_confirm(cg):
             return
 
         ### first pass
         limit = 2 if test_run else float("inf")
         for cluster_id, child_content in self.iterate_clusters_with_text(cg):
-            if not child_content:
-                print("Empty chunk : ", cluster_id)
-                raise ValueError("Empty chunk")
-                continue
-
             try:
                 prompt = SUMMARY_FIRST_PASS.format(code=child_content)
                 summary_data = await self._model.query_yaml(prompt)
@@ -251,17 +245,13 @@ class Summarizer:
             except LLMException:
                 continue
 
-            # limit run for tests
-            if limit <= 0:
-                break
-            limit -= 1
-
+            print("updating node: ", cluster_id, "with summary: ", summary_data)
             cluster_node = ClusterNode(id=cluster_id, **summary_data.to_dict())
             cg.update_node(cluster_node)
 
-        # ...
-        if limit <= 0:
-            return
+            limit -= 1
+            if limit < 0:
+                break
 
         ### second pass
         # self.reorg_cluster(cg)

@@ -118,11 +118,20 @@ class ClusterNode(Node):
     summary: str = ""
     key_variables: List[str] = field(default_factory=list)
 
+    # def dict(self):
+    #     return {
+    #         "id": self.id,
+    #         "kind": self.kind,
+    #         "title": self.title,
+    #         "summary": self.summary,
+    #         "key_variables": self.key_variables,
+    #     }
+
     def get_content(self):
         return self.summary
 
     def __hash__(self):
-        return sum([ord(c) for c in self.id])
+        return self.id
 
 
 class ClusterEdgeKind(str, Enum):

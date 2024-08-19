@@ -3,10 +3,10 @@ from tree_sitter import Point
 from collections import deque
 from typing import TypeAlias, Tuple, List
 import json
-from pathlib import Path
-import yaml
-
 from rtfs.config import SYS_MODULES_LIST, THIRD_PARTY_MODULES_LIST
+from pathlib import Path
+from collections import deque
+import yaml
 
 from logging import getLogger
 
