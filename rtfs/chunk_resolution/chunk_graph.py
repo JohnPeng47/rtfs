@@ -5,7 +5,9 @@ from typing import List, Tuple, Dict
 import os
 from collections import deque
 import json
+import yaml
 
+from rtfs.utils import dfs_json
 from rtfs.scope_resolution.capture_refs import capture_refs
 from rtfs.scope_resolution.graph_types import ScopeID
 from rtfs.repo_resolution.repo_graph import RepoGraph, RepoNodeID, repo_node_id
@@ -113,6 +115,12 @@ class ChunkGraph:
     def from_json(cls, repo_path: Path, json_data: Dict):
         cg = node_link_graph(json_data["link_data"])
 
+        for node_id, node_data in cg.nodes(data=True):
+            if "metadata" in node_data:
+                # does node_link_data just auto converts all data to string?
+                # not sure why this is converted to string ...
+                node_data["metadata"] = ChunkMetadata(**node_data["metadata"])
+
         return cls(
             repo_path,
             cg,
@@ -121,6 +129,10 @@ class ChunkGraph:
         )
 
     def to_json(self, file_path: Path):
+        """
+        Special custom node_link_data class to handle ChunkMetadata
+        """
+
         def custom_node_link_data(G):
             data = {
                 "directed": G.is_directed(),
@@ -135,7 +147,7 @@ class ChunkGraph:
                 if "metadata" in node_dict and isinstance(
                     node_dict["metadata"], ChunkMetadata
                 ):
-                    node_dict["metadata"] = node_dict["metadata"].to_json()
+                    node_dict["metadata"] = node_dict["metadata"].to_dict()
                 node_dict["id"] = n
                 data["nodes"].append(node_dict)
 
@@ -256,6 +268,16 @@ class ChunkGraph:
             if chunk.range.contains_line(range, overlap=True):
                 return chunk
 
+        return None
+
+    def find_cluster_node_by_title(self, title: str):
+        """
+        Find a cluster node by its ID
+        """
+        for node in self._graph.nodes:
+            cluster_node = self.get_node(node)
+            if isinstance(cluster_node, ClusterNode) and cluster_node.title == title:
+                return cluster_node
         return None
 
     def children(self, node_id: str):
@@ -566,19 +588,13 @@ class ChunkGraph:
             graph_json = {}
 
             node_data = self._graph.nodes[cluster_id]
-            sum_data = node_data.get("summary_data", {})
 
-            if sum_data:
-                title = sum_data.title
-                keywords = sum_data.key_variables[:4]
-                summary = sum_data.summary
-            else:
-                title = "<MISSING>"
-                keywords = "<MISSING>"
-                summary = "<MISSING>"
+            title = node_data.get("title", "<MISSING>")
+            key_variables = node_data.get("key_variables", [])[:4]
+            summary = node_data.get("summary", "MISSING")
 
             graph_json["title"] = title
-            graph_json["keywords"] = keywords
+            graph_json["key_variables"] = key_variables
             graph_json["summary"] = summary
             graph_json["chunks"] = []
             graph_json["children"] = []
@@ -609,25 +625,19 @@ class ChunkGraph:
     def clusters_to_str(self):
         INDENT_SYM = lambda d: "-" * d + " " if d > 0 else ""
 
-        def format_cluster(cluster_json, depth=0):
-            indent = "  " * depth
-            repr = f"{INDENT_SYM(depth)}{cluster_json['title']} {cluster_json.get('id', '<MISSING>')}\n"
-            repr += f"{indent}Keywords: {cluster_json['keywords']}\n"
-            repr += f"{indent}Summary: {cluster_json['summary']}\n"
-
-            for chunk in cluster_json["chunks"]:
-                repr += f"{indent}  ChunkNode: {chunk['id']}\n"
-
-            for child in cluster_json["children"]:
-                repr += format_cluster(child, depth + 1)
-
-            return repr
-
         clusters_json = self.clusters_to_json()
-        repr = ""
+        result = ""
+
         for cluster_json in clusters_json:
-            repr += format_cluster(cluster_json)
-        return repr
+            for node, depth in dfs_json(cluster_json):
+                indent = "  " * depth
+                result += f"{INDENT_SYM(depth)}Title: {node['title']}\n"
+                # result += f"{indent}Keywords: {node['key_variables']}\n"
+                # result += f"{indent}Summary: {node['summary']}\n"
+                # for chunk in node["chunks"]:
+                #     result += f"{indent}  ChunkNode: {chunk['id']}\n"
+
+        return result
 
     # def get_import_refs(
     #     self, unresolved_refs: set[str], file_path: Path, scopes: List[ScopeID]

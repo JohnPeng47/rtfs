@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import List, Optional, NewType, Literal
-
-from dataclasses_json import dataclass_json
 from dataclasses import dataclass, field
+import random
 
 # from pydantic.dataclasses import dataclass
 # from pydantic import Field
@@ -22,8 +21,14 @@ class SummarizedChunk:
     summary: str = ""
     key_variables: List[str] = field(default_factory=list)
 
+    def to_dict(self):
+        return {
+            "title": self.title,
+            "summary": self.summary,
+            "key_variables": self.key_variables,
+        }
 
-@dataclass_json
+
 @dataclass(kw_only=True)
 class ChunkMetadata:
     file_path: str
@@ -109,10 +114,12 @@ class ChunkNode(Node):
 class ClusterNode(Node):
     id: ClusterID
     kind: NodeKind = NodeKind.Cluster
-    summary_data: Optional[SummarizedChunk] = None
+    title: str = ""
+    summary: str = ""
+    key_variables: List[str] = field(default_factory=list)
 
     def get_content(self):
-        return self.summary_data.summary if self.summary_data else ""
+        return self.summary
 
     def __hash__(self):
         return sum([ord(c) for c in self.id])

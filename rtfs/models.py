@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import os
+import yaml
 
 from anthropic import Anthropic, RateLimitError
 from dataclasses import dataclass, fields
@@ -416,6 +417,25 @@ class OpenAIModel(BaseModel):
             raise CostLimitExceededError(
                 f"Context window ({self.model_metadata['max_context']} tokens) exceeded"
             )
+
+    async def query_yaml(self, prompt):
+        """
+        Query API using YAML
+
+        # >>> [1.5**b for b in a]
+        # [1.5, 2.25, 3.375, 5.0625, 7.59375]
+        """
+
+        back_off = 1.5
+        for attempt in range(1, 6):
+            try:
+                response = await self.query(prompt)
+                yaml_content = response.split("```yaml")[1].split("```")[0].strip()
+
+                return yaml.safe_load(yaml_content)
+            except Exception as e:
+                print("Failed attempt sleeping for: ", back_off**attempt)
+                await asyncio.sleep(back_off**attempt)
 
     def query_sync(self, prompt: str) -> str:
         loop = asyncio.new_event_loop()

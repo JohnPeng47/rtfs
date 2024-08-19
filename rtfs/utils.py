@@ -1,17 +1,41 @@
 from pydantic import BaseModel
 from tree_sitter import Point
-
-from dataclasses import dataclass
+from collections import deque
 from typing import TypeAlias, Tuple, List
 import json
-from rtfs.config import SYS_MODULES_LIST, THIRD_PARTY_MODULES_LIST
 from pathlib import Path
+import yaml
+
+from rtfs.config import SYS_MODULES_LIST, THIRD_PARTY_MODULES_LIST
 
 from logging import getLogger
 
 logger = getLogger(__name__)
 
 SymbolId: TypeAlias = str
+
+
+class VerboseSafeDumper(yaml.SafeDumper):
+    def ignore_aliases(self, data):
+        return True
+
+
+def dfs_json(json_data):
+    """
+    For traversing JSON representations of a tree linked by children key
+    """
+    stack = deque([(json_data, 0)])  # Stack of (node, depth) pairs
+
+    while stack:
+        node, depth = stack.pop()
+
+        # Process the current node
+        yield node, depth
+
+        # Add children to the stack in reverse order
+        # This ensures left-to-right traversal when popping from the stack
+        for child in reversed(node.get("children", [])):
+            stack.append((child, depth + 1))
 
 
 class TextRange(BaseModel):

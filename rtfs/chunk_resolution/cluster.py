@@ -12,9 +12,9 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 
-def cluster_infomap(digraph: nx.DiGraph) -> Dict[int, List]:
+def cluster_infomap(digraph: nx.DiGraph) -> Dict[str, int]:
     # Initialize Infomap
-    infomap = Infomap("--seed 42", silent=True)
+    infomap = Infomap("--seed 42 --two-level", silent=True)
 
     # Create a mapping from NetworkX node IDs to integer IDs
     node_id_map = {node: idx for idx, node in enumerate(digraph.nodes())}
@@ -24,16 +24,14 @@ def cluster_infomap(digraph: nx.DiGraph) -> Dict[int, List]:
     for edge in digraph.edges():
         infomap.addLink(node_id_map[edge[0]], node_id_map[edge[1]])
 
-    infomap.run()
     # Run Infomap clustering
+    infomap.run()
 
-    cluster_dict: Dict[int, List] = {}
-    # node_id, path
-    # 1 (1, 2, 2)
-    for node, levels in infomap.get_multilevel_modules().items():
+    # Create the {codechunk: cluster} mapping
+    cluster_dict: Dict[str, int] = {}
+    for node, modules in infomap.get_multilevel_modules().items():
         node_id = reverse_node_id_map[node]
-        cluster_dict[node_id] = [lvl for lvl in levels]
-
-    # replace leaf nodes with their original id
+        # We use the last level as the cluster ID
+        cluster_dict[node_id] = modules[-1]
 
     return cluster_dict

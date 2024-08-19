@@ -174,7 +174,7 @@ class RepoGraph:
 
                     for init_imp in init_imports:
                         init_file = self.fs.match_file(init_imp.namespace.to_path())
-                        print("Init file: ", init_file)
+                        # print("Init file: ", init_file)
 
                         if not init_file:
                             continue
