@@ -41,7 +41,7 @@ class ChunkMetadata:
     end_line: int
     community: Optional[int] = None
 
-    def to_dict(self):
+    def to_json(self):
         return {
             "file_path": self.file_path,
             "file_name": self.file_name,

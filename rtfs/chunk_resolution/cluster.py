@@ -1,11 +1,6 @@
 import networkx as nx
 from infomap import Infomap
-import yaml
-from dataclasses import dataclass, field
 from typing import Dict, List
-import time
-
-from rtfs.models import OpenAIModel
 
 from logging import getLogger
 
@@ -25,6 +20,7 @@ def cluster_infomap(digraph: nx.DiGraph) -> Dict[str, int]:
         infomap.addLink(node_id_map[edge[0]], node_id_map[edge[1]])
 
     # Run Infomap clustering
+    infomap.run()
 
     cluster_dict: Dict[int, List] = {}
     # node_id, path

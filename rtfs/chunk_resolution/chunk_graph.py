@@ -119,9 +119,7 @@ class ChunkGraph:
             if "metadata" in node_data:
                 # does node_link_data just auto converts all data to string?
                 # not sure why this is converted to string ...
-                node_data["metadata"] = ChunkMetadata(
-                    **json.loads(node_data["metadata"])
-                )
+                node_data["metadata"] = ChunkMetadata(**node_data["metadata"])
 
         return cls(
             repo_path,

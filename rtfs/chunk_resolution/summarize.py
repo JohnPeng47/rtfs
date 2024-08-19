@@ -46,24 +46,24 @@ Here is the code:
 """
 
 REORGANIZE_CLUSTERS = """
-You are given a following a set of clusters that each represent a hierarchal grouping
-of functionalities in a codebase. There may be a better way of organizing these clusters.
-I want you to carefully think through each feature grouping, and then reorganize the clusters
-accordingly. Here are some more precise instructions:
+You are given a following a set of clusters that encapsulate different features in the codebase. Take these clusters
+and group them into logical categories, then come up with a name for each category
 
+Here are some more precise instructions:
 1. Carefully read through the entire list of features and functionalities.
-2. Place each feature or functionality under the most appropriate category or subcategory.
-3. Within each category and subcategory, order the features in a logical manner (e.g., from most basic to most advanced, or in order of typical user workflow).
-4. You can remove/add clusters ONLY IF they have no children
+2. The categories must be mutually exclusive and collectively exhaustive.
+3. Place each feature or functionality under the most appropriate category
+4. Each category should not have less than 2 children clusters
 
-Your generated output should be a yaml object that only contains title and children fields as in the following format:
+Your generated output should only contain the title of the your created categories and their list of children.
+Return your output in a yaml object, with the following format:
 
-title: str
-children: 
-    - title: str
-        children:
-title: str
-children:
+- category: str
+    children: []
+- category: str
+    children: []
+- category: str
+    children: []
 ...
 
 {cluster_yaml}
@@ -101,116 +101,65 @@ class Summarizer:
             )
             yield (cluster, child_content)
 
-    def clusters_to_str(self):
-        INDENT_SYM = lambda d: "-" * d + " " if d > 0 else ""
-
-        clusters_json = self.clusters_to_json()
-        result = ""
-
-        for cluster_json in clusters_json:
-            for node, depth in dfs_json(cluster_json):
-                indent = "  " * depth
-                result += f"{INDENT_SYM(depth)}{node['title']}\n"
-                result += f"{indent}Keywords: {node['key_variables']}\n"
-                result += f"{indent}Summary: {node['summary']}\n"
-                for chunk in node["chunks"]:
-                    result += f"{indent}  ChunkNode: {chunk['id']}\n"
-
-        return result
-
     # TODO: need some way handling cases where the code is too long
     def clusters_to_yaml(self, cg: ChunkGraph):
-        num_parent_clusters = 0
-        num_child_clusters = 0
-
         clusters_json = cg.clusters_to_json()
-        clusters_dict = []
+        for cluster in clusters_json:
+            del cluster["chunks"]
+            del cluster["key_variables"]
 
-        # count the number of parent and child clusters
-        for cluster_json in clusters_json:
-            for node, depth in dfs_json(cluster_json):
-                if node["children"] == []:
-                    num_child_clusters += 1
+        return yaml.dump(
+            clusters_json,
+            Dumper=VerboseSafeDumper,
+            # default_flow_style=False,
+            sort_keys=False,
+        ), len(clusters_json)
+
+    async def gen_categories(
+        self, cg: ChunkGraph, retries: int = 3
+    ) -> Dict[int, SummarizedChunk]:
+        """
+        Generates another level of clusters from existing clusters
+        """
+        for attempt in range(retries):
+            try:
+                cluster_str, num_clusters = self.clusters_to_yaml(cg)
+                prompt = REORGANIZE_CLUSTERS.format(cluster_yaml=cluster_str)
+                yaml_res = await self._model.query_yaml(prompt)
+
+                num_generated_nodes = 0
+                for category in yaml_res:
+                    cluster_node = ClusterNode(
+                        id=get_cluster_id(),
+                        title=category["category"],
+                        kind=NodeKind.Cluster,
+                    )
+                    cg.add_node(cluster_node)
+                    for child in category["children"]:
+                        child_node = cg.find_cluster_node_by_title(child)
+                        cg.add_edge(
+                            child_node.id,
+                            cluster_node.id,
+                            ClusterEdge(
+                                kind=ClusterEdgeKind.ClusterToCluster,
+                            ),
+                        )
+
+                        num_generated_nodes += 1
+
+                if num_clusters != num_generated_nodes:
+                    raise Exception(
+                        "Number of generated nodes does not match number of clusters"
+                    )
+
+                break
+            except Exception as e:
+                if attempt < retries - 1:
+                    print(
+                        f"Error in generating categories (attempt {attempt + 1}/{retries}): {e}"
+                    )
                 else:
-                    num_parent_clusters += 1
-
-                del node["chunks"]
-                del node["key_variables"]
-
-                clusters_dict.append(node)
-
-        return (
-            yaml.dump(
-                clusters_dict,
-                Dumper=VerboseSafeDumper,
-                # default_flow_style=False,
-                sort_keys=False,
-            ),
-            num_parent_clusters,
-            num_child_clusters,
-        )
-
-    async def reorg_cluster(self, cg: ChunkGraph) -> Dict[int, SummarizedChunk]:
-        """
-        Reorganizes the clusters generated from infomap
-        """
-        cluster_str, old_parent_num, old_child_num = self.clusters_to_yaml(cg)
-        prompt = REORGANIZE_CLUSTERS.format(cluster_yaml=cluster_str)
-
-        res = await self._model.query_yaml(prompt)
-
-        num_cluster_nodes = sum(
-            1 for node, data in cg._graph.nodes(data=True) if data["kind"] == "Cluster"
-        )
-        print(f"Number of cluster nodes in the graph: {num_cluster_nodes}")
-
-        new_parent_num = 0
-        new_child_num = 0
-
-        def walk_reorg(cluster_yaml, parent_id=None):
-            nonlocal new_parent_num, new_child_num
-
-            if type(cluster_yaml) is list:
-                [walk_reorg(child, parent_id) for child in cluster_yaml]
-                return
-
-            cluster_node = cg.find_cluster_node_by_title(cluster_yaml["title"])
-            # new cluster node
-            if not cluster_node:
-                cluster_node = ClusterNode(
-                    id=get_cluster_id(),
-                    title=cluster_yaml["title"],
-                )
-                cg.add_node(cluster_node)
-
-            # changed child/cluster relation
-            if parent_id and not cg._graph.has_edge(cluster_node.id, parent_id):
-                # Remove any existing edges from cluster_node.id
-                edges_to_remove = list(cg._graph.out_edges(cluster_node.id))
-                for edge in edges_to_remove:
-                    cg._graph.remove_edge(*edge)
-
-                edge = ClusterEdge(kind=ClusterEdgeKind.ClusterToCluster)
-                cg.add_edge(parent_id, cluster_node.id, edge)
-
-            if cluster_yaml["children"]:
-                new_parent_num += 1
-                for child in cluster_yaml["children"]:
-                    # walk_reorg(child, parent_id=None)
-                    walk_reorg(child, parent_id=cluster_node.id)
-            else:
-                new_child_num += 1
-
-        walk_reorg(res)
-
-        print(new_parent_num, new_child_num)
-        print(old_parent_num, old_child_num)
-        num_cluster_nodes = sum(
-            1 for node, data in cg._graph.nodes(data=True) if data["kind"] == "Cluster"
-        )
-        print(f"Number of cluster nodes in the graph: {num_cluster_nodes}")
-
-        return res
+                    raise LLMException("Exception generating categories")
 
     def user_confirm(self, cg: ChunkGraph) -> bool:
         agg_chunks = ""
