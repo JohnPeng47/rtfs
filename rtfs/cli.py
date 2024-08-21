@@ -28,7 +28,29 @@ import traceback
 GRAPH_FOLDER = pkg_resources.files("rtfs") / "graphs"
 
 
-def profile_decorator(func):
+def sync_profile_decorator(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        pr = cProfile.Profile()
+        pr.enable()
+
+        result = func(*args, **kwargs)
+
+        pr.disable()
+
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE)
+        ps.dump_stats("profile.txt")
+
+        print(f"Profiling results for {func.__name__}:")
+        print(s.getvalue())
+
+        return result
+
+    return wrapper
+
+
+def async_profile_decorator(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         pr = cProfile.Profile()
@@ -40,7 +62,8 @@ def profile_decorator(func):
 
         s = io.StringIO()
         ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE)
-        ps.print_stats(40)  # Print top 40 lines
+        ps.dump_stats("profile.txt")
+
         print(f"Profiling results for {func.__name__}:")
         print(s.getvalue())
 
@@ -49,7 +72,7 @@ def profile_decorator(func):
     return wrapper
 
 
-@profile_decorator
+@async_profile_decorator
 async def profiled_main(repo_path, saved_graph_path: Path):
     fg = FileGraph.from_repo(Path(repo_path))
 
@@ -165,6 +188,7 @@ def file_graph(repo_path, saved_graph_path):
 
 
 @cli.command()
+@sync_profile_decorator
 @click.argument(
     "repo_path",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),

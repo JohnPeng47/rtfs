@@ -101,7 +101,7 @@ class ChunkGraph:
         # main loop to build graph
         for chunk_node in cg.get_all_nodes():
             # chunk -> range -> scope
-            cg.build_import_exports(chunk_node)
+            cg.build_import_exports_chunks(chunk_node)
 
         for f, scopes in cg._file2scope.items():
             all_scopes = cg._repo_graph.scopes_map[f].scopes()
@@ -218,7 +218,7 @@ class ChunkGraph:
     # find all root nodes (no incoming edges)
     # iterate dfs and add all nodes to seen list
     # start from another node
-    def build_import_exports(self, chunk_node: ChunkNode):
+    def build_import_exports_chunks(self, chunk_node: ChunkNode):
         """
         Build the import to export mapping for a chunk
         need to do: import (chunk -> range -> scope) -> export (scope -> range -> chunk)

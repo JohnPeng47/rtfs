@@ -64,6 +64,9 @@ class RepoFs:
         #     return import_path.with_suffix(SRC_EXT).resolve()
 
         for path in self._all_paths:
+            if self._skip_tests and path.name.startswith("test_"):
+                continue
+
             path_name = path.name.replace(SRC_EXT, "")
             match_path = list(path.parts[-len(ns_path.parts) : -1]) + [path_name]
 
