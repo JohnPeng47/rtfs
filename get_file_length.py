@@ -65,8 +65,9 @@ if __name__ == "__main__":
 
     content = print_python_files_content(args.repo_path, exclude_patterns=["alembic"])
 
-    if args.output == "content":
-        print(content)
-    else:  # args.output == "cost"
-        _, cost = invoke(content, dry_run=True)
-        print("Total cost: ", cost)
+    # if args.output == "content":
+    #     print(content)
+    # else:  # args.output == "cost"
+    _, cost = invoke(content, dry_run=True)
+    print("Total cost: ", cost)
+    print("Total lengt: ", len(content))
