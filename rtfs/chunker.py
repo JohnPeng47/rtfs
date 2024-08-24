@@ -4,6 +4,7 @@ from typing import Dict, List
 import mimetypes
 import fnmatch
 from pathlib import Path
+import json
 
 from llama_index.core import SimpleDirectoryReader
 from rtfs.moatless.epic_split import EpicSplitter
@@ -11,7 +12,7 @@ from rtfs.moatless.settings import IndexSettings
 from rtfs.chunk_resolution.chunk_graph import ChunkGraph
 
 
-def chunk(repo_path: str, exclude_paths: List[str] = []) -> ChunkGraph:
+def chunk(repo_path: str, persist_dir: str = "") -> ChunkGraph:
     def file_metadata_func(file_path: str) -> Dict:
         test_patterns = [
             "**/test/**",
@@ -54,5 +55,10 @@ def chunk(repo_path: str, exclude_paths: List[str] = []) -> ChunkGraph:
 
     prepared_nodes = splitter.get_nodes_from_documents(docs, show_progress=True)
     chunk_graph = ChunkGraph.from_chunks(Path(repo_path), prepared_nodes)
+
+    if persist_dir:
+        node_dict = [node.dict() for node in prepared_nodes]
+        with open(persist_dir, "w") as f:
+            f.write(json.dumps(node_dict))
 
     return chunk_graph
