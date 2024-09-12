@@ -15,7 +15,7 @@ import asyncio
 import traceback
 
 from rtfs.chunk_resolution.chunk_graph import ChunkGraph
-from rtfs.chunk_resolution.summarize import Summarizer
+from rtfs.summarize.summarize import Summarizer
 from rtfs.file_resolution.file_graph import FileGraph
 from rtfs.chunker import chunk
 
@@ -145,22 +145,20 @@ def file_graph(repo_path, saved_graph_path):
 @click.option("--output-file", type=click.Path(), default=None)
 def chunk_graph(repo_path, test_run, output_format, output_file):  # Modified line
     """Generate and manipulate ChunkGraph."""
-    saved_graph_path = Path(GRAPH_FOLDER, Path(repo_path).name + ".json")
-    if saved_graph_path.exists():
-        with open(saved_graph_path, "r") as f:
-            graph_dict = json.loads(f.read())
+    # saved_graph_path = Path(GRAPH_FOLDER, Path(repo_path).name + ".jsonffff")
+    # if saved_graph_path.exists():
+    #     with open(saved_graph_path, "r") as f:
+    #         graph_dict = json.loads(f.read())
 
-        print("Loading graph from saved file")
-        cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
-    else:
-        cg = chunk(repo_path)
-        cg.cluster()
-        cg.to_json(saved_graph_path)
+    #     print("Loading graph from saved file")
+    #     cg = ChunkGraph.from_json(Path(repo_path), graph_dict)
+    # else:
+    cg = chunk(repo_path)
+    cg.cluster()
+    # cg.to_json(saved_graph_path)
 
-        exit()
-
-        summarizer = Summarizer()
-        asyncio.run(summarizer.summarize(cg, user_confirm=True, test_run=test_run))
+    summarizer = Summarizer()
+    asyncio.run(summarizer.summarize(cg, user_confirm=True, test_run=test_run))
 
     if output_format == "str":
         click.echo(cg.clusters_to_str())
@@ -173,7 +171,7 @@ def chunk_graph(repo_path, test_run, output_format, output_file):  # Modified li
         else:
             click.echo(json.dumps(clusters_json, indent=2))
 
-    cg.to_json(saved_graph_path)
+    # cg.to_json(saved_graph_path)
 
     click.echo("ChunkGraph generated and processed successfully.")
 

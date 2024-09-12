@@ -3,7 +3,7 @@ from typing import Dict, Optional, Iterator, List, NewType, Tuple
 from enum import Enum
 from collections import defaultdict
 
-from rtfs.graph import Node
+from rtfs.graph import Node, CodeGraph
 from rtfs.utils import TextRange
 
 from rtfs.scope_resolution import (
@@ -18,10 +18,11 @@ from rtfs.scope_resolution.graph_types import NodeKind, EdgeKind, ScopeNode, Sco
 from rtfs.scope_resolution.interval_tree import IntervalGraph
 
 
-class ScopeGraph:
+class ScopeGraph(CodeGraph):
     def __init__(self, range: TextRange):
+        super().__init__(node_types=[ScopeNode])
+
         # TODO: put all this logic into a separate Graph class
-        self._graph = DiGraph()
         self._node_counter = 0
 
         self.scope2range: Dict[ScopeID, TextRange] = {}
@@ -33,7 +34,6 @@ class ScopeGraph:
         # lookup tables for faster lookups, especially for references resolution
         self.defn_dict: Dict[str, List[Tuple[TextRange, ScopeID]]] = defaultdict(list)
         self.imp_dict: Dict[str, List[Tuple[TextRange, ScopeID]]] = defaultdict(list)
-        
 
         # use this to faster resolve range -> scope queries
         self._ig = IntervalGraph(range, self.root_idx)
@@ -71,7 +71,7 @@ class ScopeGraph:
             self._graph.add_edge(new_idx, parent_scope, type=EdgeKind.ImportToScope)
 
             for names in new.names:
-                self.imp_dict[names].append((new.range, new_idx))    
+                self.imp_dict[names].append((new.range, new_idx))
 
     def insert_local_def(self, new: LocalDef) -> None:
         """
@@ -108,7 +108,7 @@ class ScopeGraph:
             parent_scope = self.parent_scope(defining_scope)
             target_scope = parent_scope if parent_scope is not None else defining_scope
             self._graph.add_edge(new_idx, target_scope, type=EdgeKind.DefToScope)
-            
+
             self.defn_dict[new.name].append((new.range, new_idx))
 
     def insert_global_def(self, new: LocalDef) -> None:
@@ -137,7 +137,7 @@ class ScopeGraph:
             if defs:
                 # print("Found ref: ", new.name)
                 possible_defs.append(min(defs, key=lambda x: x[0]))
-            
+
             imports = self.imp_dict.get(new.name, [])
             if imports:
                 # print("Found ref import: ", new.name)
@@ -280,7 +280,7 @@ class ScopeGraph:
     def child_scope_stack(self, start: ScopeID) -> List[ScopeID]:
         stack = self.child_scopes(start)
 
-        for child in self.child_scopes(start):
+        for child in self.child_scoes(start):
             stack += self.child_scope_stack(child)
 
         return stack
@@ -295,17 +295,14 @@ class ScopeGraph:
         """
         Adds node and increments node_counter for its id
         """
-        id = self._node_counter
-        if node.dict() == {} or all(value is None for value in node.dict().values()):
-            raise Exception("empty node")
+        node.id = self._node_counter
+        super().add_node(node)
 
-        self._graph.add_node(id, **node.dict())
         self._node_counter += 1
+        return node.id
 
-        return id
-
-    def get_node(self, idx: int) -> ScopeNode:
-        return ScopeNode(**self._graph.nodes(data=True)[idx])
+    # def get_node(self, idx: int) -> ScopeNode:
+    #     return ScopeNode(**self._graph.nodes(data=True)[idx])
 
     def to_str(self):
         """

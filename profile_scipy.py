@@ -21,7 +21,7 @@ from llama_index.core import SimpleDirectoryReader
 from rtfs.moatless.epic_split import EpicSplitter
 from rtfs.moatless.settings import IndexSettings
 from rtfs.chunk_resolution.chunk_graph import ChunkGraph
-from rtfs.chunk_resolution.summarize import Summarizer
+from rtfs.summarize.summarize import Summarizer
 from rtfs.file_resolution.file_graph import FileGraph
 import traceback
 

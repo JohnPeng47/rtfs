@@ -3,7 +3,7 @@ from pathlib import Path
 from networkx import DiGraph
 
 from rtfs.fs import RepoFs
-from rtfs.scope_resolution.graph import ScopeGraph
+from rtfs.scope_resolution.scope_graph import ScopeGraph
 from rtfs.scope_resolution.graph_types import ScopeID
 from rtfs.build_scopes import build_scope_graph
 from rtfs.scope_resolution import LocalImportStmt
@@ -11,7 +11,8 @@ from rtfs.utils import SysModules, ThirdPartyModules
 from rtfs.config import LANGUAGE
 
 from .imports import LocalImport, ModuleType, import_stmt_to_import
-from .graph_type import EdgeKind, RepoNode, RepoNodeID, RefEdge
+from .graph import EdgeKind, RepoNode, RepoNodeID, RefEdge
+from rtfs.graph import CodeGraph
 
 from collections import defaultdict
 import logging
@@ -28,12 +29,13 @@ def repo_node_id(file: Path, scope_id: ScopeID):
 
 
 # this graph is python specific
-class RepoGraph:
+class RepoGraph(CodeGraph):
     """
     Constructs a graph of relation between the scopes of a repo
     """
 
     def __init__(self, path: Path):
+        super().__init__(node_types=[RepoNode])
         if not path.exists():
             raise FileNotFoundError(f"Path {path} does not exist")
 
@@ -110,20 +112,16 @@ class RepoGraph:
                         )
 
     def get_node(self, node_id: RepoNodeID) -> RepoNode:
-        node = self._graph.nodes.get(node_id, None)
-        if not node:
-            return None
-
-        return RepoNode(**node)
+        return super().get_node(node_id)
 
     def add_node(self, node: RepoNode):
-        self._graph.add_node(node.id, **node.dict())
+        super().add_node(node)
 
     def add_edge(
         self, ref_node_id: RepoNodeID, def_node_id: RepoNodeID, ref: str, defn: str
     ):
-        edge = RefEdge(ref=ref, defn=ref)
-        self._graph.add_edge(ref_node_id, def_node_id, **edge.dict())
+        edge = RefEdge(src=ref_node_id, dst=def_node_id, ref=ref, defn=defn)
+        super().add_edge(edge)
 
     def get_outgoing_edge(
         self, ref_node_id: RepoNodeID, exp_node_id: RepoNodeID

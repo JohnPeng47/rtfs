@@ -2,8 +2,14 @@ import yaml
 from typing import Dict, List
 import random
 
-from .chunk_graph import ChunkGraph
-from .graph import ClusterNode, NodeKind, SummarizedChunk, ClusterEdgeKind, ClusterEdge
+from ..chunk_resolution.chunk_graph import ChunkGraph
+from ..chunk_resolution.graph import (
+    ClusterNode,
+    NodeKind,
+    SummarizedChunk,
+    ClusterEdgeKind,
+    ClusterEdge,
+)
 
 from rtfs.utils import dfs_json, VerboseSafeDumper
 from rtfs.models import OpenAIModel
@@ -101,6 +107,7 @@ class Summarizer:
             )
             yield (cluster, child_content)
 
+    # TODO: move clusters_to_json out of CG
     # TODO: need some way handling cases where the code is too long
     def clusters_to_yaml(self, cg: ChunkGraph):
         clusters_json = cg.clusters_to_json()

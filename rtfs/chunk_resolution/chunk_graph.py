@@ -13,7 +13,7 @@ from rtfs.scope_resolution.graph_types import ScopeID
 from rtfs.repo_resolution.repo_graph import RepoGraph, RepoNodeID, repo_node_id
 from rtfs.fs import RepoFs
 from rtfs.utils import TextRange
-from rtfs.graph import Node
+from rtfs.graph import Node, CodeGraph
 
 from rtfs.models import OpenAIModel, BaseModel
 
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 # DESIGN_TODO: make a generic Graph object to handle add/update Node
-class ChunkGraph:
+class ChunkGraph(CodeGraph):
     def __init__(
         self,
         repo_path: Path,
@@ -47,6 +47,8 @@ class ChunkGraph:
         cluster_roots=[],
         cluster_depth=None,
     ):
+        super().__init__(node_types=[ChunkNode, ClusterNode])
+
         self.fs = RepoFs(repo_path)
         self._graph = g
         self._repo_graph = RepoGraph(repo_path)
@@ -171,22 +173,22 @@ class ChunkGraph:
             graph_json = json.dumps(graph_dict)
             f.write(graph_json)
 
-    def get_node(self, node_id: str) -> ChunkNode:
-        data = self._graph._node.get(node_id, None)
-        if not data:
-            return None
+    # def get_node(self, node_id: str) -> ChunkNode:
+    #     data = self._graph._node.get(node_id, None)
+    #     if not data:
+    #         return None
 
-        # BUG: hacky fix but for some reason node_link_data stores
-        # the data wihtout id
-        if data.get("id", None):
-            del data["id"]
+    #     # BUG: hacky fix but for some reason node_link_data stores
+    #     # the data wihtout id
+    #     if data.get("id", None):
+    #         del data["id"]
 
-        if data["kind"] == NodeKind.Cluster:
-            node = ClusterNode(id=node_id, **data)
-        elif data["kind"] == NodeKind.Chunk:
-            node = ChunkNode(id=node_id, **data)
+    #     if data["kind"] == NodeKind.Cluster:
+    #         node = ClusterNode(id=node_id, **data)
+    #     elif data["kind"] == NodeKind.Chunk:
+    #         node = ChunkNode(id=node_id, **data)
 
-        return node
+    #     return node
 
     def remove_node(self, node_id: str):
         """
@@ -202,13 +204,6 @@ class ChunkGraph:
 
     def get_all_nodes(self) -> List[ChunkNode]:
         return [self.get_node(n) for n in self._graph.nodes]
-
-    def add_edge(self, n1, n2, edge: ImportEdge):
-        self._graph.add_edge(n1, n2, **edge.dict())
-
-    def add_node(self, node: Node):
-        id = node.id
-        self._graph.add_node(id, **node.dict())
 
     def update_node(self, chunk_node: ChunkNode):
         self.add_node(chunk_node)
@@ -249,15 +244,17 @@ class ChunkGraph:
             dst_chunk = self.find_chunk(Path(export.file_path), export_range)
             if dst_chunk:
                 if scope_graph.is_call_ref(ref.range):
-                    call_edge = CallEdge(ref=ref.name)
+                    call_edge = CallEdge(
+                        src=chunk_node.id, dst=dst_chunk.id, ref=ref.name
+                    )
                     # print("adding call edge: ", call_edge.dict())
-                    self.add_edge(chunk_node.id, dst_chunk.id, call_edge)
+                    self.add_edge(call_edge)
 
                 # differentiate between ImportToExport chunks and CallToExport chunks
                 # so in the future we can use this for file level edges
-                ref_edge = ImportEdge(ref=ref.name)
+                ref_edge = ImportEdge(src=chunk_node.id, dst=dst_chunk.id, ref=ref.name)
                 # print(f"Adding edge: {chunk_node.id} -> {dst_chunk.id}")
-                self.add_edge(chunk_node.id, dst_chunk.id, ref_edge)
+                self.add_edge(ref_edge)
 
     # TODO: should really use IntervalGraph here but chunks are small enough
     def find_chunk(self, file_path: Path, range: TextRange):
@@ -340,11 +337,10 @@ class ChunkGraph:
             if not self._graph.has_node(cluster):
                 self.add_node(ClusterNode(id=cluster))
 
-            self.add_edge(
-                chunk_node,
-                cluster,
-                ClusterEdge(kind=ClusterEdgeKind.ChunkToCluster),
+            cluster_edge = ClusterEdge(
+                src=chunk_node, dst=cluster, kind=ClusterEdgeKind.ChunkToCluster
             )
+            self.add_edge(cluster_edge)
 
         return cluster_dict
 

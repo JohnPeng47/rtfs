@@ -10,7 +10,7 @@ from rtfs.scope_resolution.imports import (
 )
 from rtfs.utils import TextRange
 from rtfs.languages import LANG_PARSER
-from rtfs.scope_resolution.graph import ScopeGraph
+from rtfs.scope_resolution.scope_graph import ScopeGraph
 
 from rtfs.ts.capture_types import (
     LocalCallCapture,

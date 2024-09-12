@@ -28,6 +28,7 @@ class EdgeKind(str, Enum):
 
 @dataclass(kw_only=True)
 class ScopeNode(Node):
+    kind: str = "ScopeNode"
     range: TextRange
     type: NodeKind
     name: Optional[str] = ""

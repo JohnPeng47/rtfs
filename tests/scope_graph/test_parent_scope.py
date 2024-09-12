@@ -2,7 +2,7 @@ from rtfs.build_scopes import build_scope_graph
 from rtfs.languages import PythonParse
 from rtfs.scope_resolution.definition import LocalDef
 from rtfs.scope_resolution.scope import LocalScope
-from rtfs.scope_resolution.graph import ScopeGraph
+from rtfs.scope_resolution.scope_graph import ScopeGraph
 from rtfs.utils import TextRange
 
 from conftest import range

@@ -67,17 +67,16 @@ class ChunkMetadata:
 
 
 class NodeKind(str, Enum):
-    Chunk = "Chunk"
-    Cluster = "Cluster"
+    Chunk = "ChunkNode"
+    Cluster = "ClusterNode"
 
 
 @dataclass(kw_only=True)
 class ChunkNode(Node):
-    id: ChunkNodeID
+    kind: str = "ChunkNode"
     og_id: str  # original ID on the BaseNode
     metadata: ChunkMetadata
     content: str
-    kind: NodeKind = NodeKind.Chunk
 
     @property
     def range(self):
@@ -112,8 +111,7 @@ class ChunkNode(Node):
 
 @dataclass(kw_only=True)
 class ClusterNode(Node):
-    id: ClusterID
-    kind: NodeKind = NodeKind.Cluster
+    kind: str = "ClusterNode"
     title: str = ""
     summary: str = ""
     key_variables: List[str] = field(default_factory=list)
@@ -131,13 +129,12 @@ class ClusterNode(Node):
         return self.summary
 
     def __hash__(self):
-        return self.id
+        return hash(self.id)
 
 
 class ClusterEdgeKind(str, Enum):
-    ChunkToChunk = "ChunkToChunk"
-    ClusterToCluster = "ClusterToCluster"
     ChunkToCluster = "ChunkToCluster"
+    ClusterToCluster = "ClusterToCluster"
 
 
 class ChunkEdgeKind(str, Enum):

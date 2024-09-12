@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from rtfs.scope_resolution.graph import ScopeGraph
+from rtfs.scope_resolution.scope_graph import ScopeGraph
 from rtfs.scope_resolution.imports import LocalImportStmt
 from rtfs.repo_resolution.namespace import NameSpace
 from rtfs.fs import RepoFs
