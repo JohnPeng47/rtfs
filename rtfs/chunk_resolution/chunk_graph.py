@@ -135,7 +135,7 @@ class ChunkGraph(CodeGraph):
         Special custom node_link_data class to handle ChunkMetadata
         """
 
-        def custom_node_link_data(G):
+        def custom_node_link_data(G: MultiDiGraph):
             data = {
                 "directed": G.is_directed(),
                 "multigraph": G.is_multigraph(),

@@ -27,6 +27,9 @@ class CodeGraph(DiGraph):
         self._graph = DiGraph()
         self.node_types: Dict[str, Type[Node]] = {nt.__name__: nt for nt in node_types}
 
+    def has_node(self, node_id: str) -> bool:
+        return self._graph.has_node(node_id)
+
     def add_node(self, node: Node):
         self._graph.add_node(node.id, **node.dict())
         return node.id
